@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Room, User, Message } from './types';
+import { Room, User, Message, MusicLink } from './types';
 import Home from './components/Lobby';
 import RoomComponent from './components/Room';
 import MinimizedRoomTab from './components/MinimizedRoomTab';
@@ -235,54 +235,114 @@ const App: React.FC = () => {
         });
     };
 
+    // For client-side state only (position, status, zIndex)
     const updateRoomState = <K extends keyof Room>(roomId: string, key: K, value: Room[K]) => {
         setRooms(prev => prev.map(r => r.id === roomId ? { ...r, [key]: value } : r));
     };
-
-    const addSystemMessage = (roomId: string, text: string) => {
-        const systemMessage: Message = {
-            id: `msg-${Date.now()}`,
-            user: { id: 'system', name: 'system', color: '#FFFF00' },
-            text,
-            timestamp: Date.now(),
+    
+    // For shared data that must be synced between public/active lists
+    const handleAddMessage = (roomId: string, message: Message) => {
+        const updater = (room: Room) => {
+            if (room.id !== roomId) return room;
+            return { ...room, messages: [...room.messages, message] };
         };
-        updateRoomState(roomId, 'messages', [...(rooms.find(r => r.id === roomId)?.messages || []), systemMessage]);
+        setRooms(prev => prev.map(updater));
+        setPublicRooms(prev => prev.map(updater));
+    };
+
+    const handleAddLink = (roomId: string, link: MusicLink) => {
+        const updater = (room: Room) => {
+            if (room.id !== roomId) return room;
+            return { ...room, musicLinks: [...room.musicLinks, link] };
+        };
+        setRooms(prev => prev.map(updater));
+        setPublicRooms(prev => prev.map(updater));
     };
 
     const handleAdminAction = (roomId: string, action: 'kick' | 'promote' | 'demote', targetUser: User) => {
         if (!currentUser) return;
+        const roomNameForAlert = rooms.find(r => r.id === roomId)?.name ?? publicRooms.find(r => r.id === roomId)?.name;
 
-        const room = rooms.find(r => r.id === roomId);
-        if (!room || !room.adminIds.includes(currentUser.id)) return;
+        const updater = (room: Room): Room => {
+            if (room.id !== roomId || !room.adminIds.includes(currentUser.id)) {
+                return room;
+            }
 
-        switch (action) {
-            case 'kick':
-                addSystemMessage(roomId, `${targetUser.name} was kicked from the room by ${currentUser.name}.`);
-                
-                // Update user list for everyone still in the room.
-                updateRoomState(roomId, 'users', room.users.filter(u => u.id !== targetUser.id));
+            let newUsers = room.users;
+            let newAdminIds = room.adminIds;
+            let systemMessageText: string | null = null;
+            
+            switch (action) {
+                case 'kick':
+                    newUsers = room.users.filter(u => u.id !== targetUser.id);
+                    systemMessageText = `${targetUser.name} was kicked from the room by ${currentUser.name}.`;
+                    break;
+                case 'promote':
+                    if (!room.adminIds.includes(targetUser.id)) {
+                        newAdminIds = [...room.adminIds, targetUser.id];
+                        systemMessageText = `${targetUser.name} was promoted to admin by ${currentUser.name}.`;
+                    }
+                    break;
+                case 'demote':
+                    if (room.creatorId !== targetUser.id) {
+                        newAdminIds = room.adminIds.filter(id => id !== targetUser.id);
+                        systemMessageText = `${targetUser.name} was demoted by ${currentUser.name}.`;
+                    }
+                    break;
+            }
 
-                // If the kicked user is the current user, close their window and notify them.
-                if (targetUser.id === currentUser.id) {
-                    setTimeout(() => {
-                        closeRoom(roomId);
-                        alert(`You have been kicked from "${room.name}".`);
-                    }, 500); // Delay to allow user to see the message.
-                }
-                break;
-            case 'promote':
-                if (!room.adminIds.includes(targetUser.id)) {
-                    updateRoomState(roomId, 'adminIds', [...room.adminIds, targetUser.id]);
-                    addSystemMessage(roomId, `${targetUser.name} was promoted to admin by ${currentUser.name}.`);
-                }
-                break;
-            case 'demote':
-                if (room.creatorId !== targetUser.id) {
-                    updateRoomState(roomId, 'adminIds', room.adminIds.filter(id => id !== targetUser.id));
-                    addSystemMessage(roomId, `${targetUser.name} was demoted by ${currentUser.name}.`);
-                }
-                break;
+            if (!systemMessageText) {
+                return room;
+            }
+            
+            const systemMessage: Message = {
+                id: `msg-${Date.now()}`,
+                user: { id: 'system', name: 'system', color: '#FFFF00' },
+                text: systemMessageText,
+                timestamp: Date.now(),
+            };
+
+            return {
+                ...room,
+                users: newUsers,
+                adminIds: newAdminIds,
+                messages: [...room.messages, systemMessage],
+            };
+        };
+
+        setRooms(prev => prev.map(updater));
+        setPublicRooms(prev => prev.map(updater));
+
+        if (action === 'kick' && targetUser.id === currentUser.id) {
+            setTimeout(() => {
+                closeRoom(roomId);
+                alert(`You have been kicked from "${roomNameForAlert || 'the room'}".`);
+            }, 100);
         }
+    };
+
+    const handleRemoveLink = (roomId: string, linkId: string, user: User) => {
+        const updater = (room: Room) => {
+            if (room.id !== roomId) {
+                return room;
+            }
+
+            const updatedLinks = room.musicLinks.filter(link => link.id !== linkId);
+            const systemMessage: Message = {
+                id: `msg-${Date.now()}`,
+                user: { id: 'system', name: 'system', color: '#FFFF00' },
+                text: `${user.name} removed a shared link.`,
+                timestamp: Date.now(),
+            };
+
+            return {
+                ...room,
+                musicLinks: updatedLinks,
+                messages: [...room.messages, systemMessage],
+            };
+        };
+        setRooms(prev => prev.map(updater));
+        setPublicRooms(prev => prev.map(updater));
     };
 
     const closeRoom = (roomId: string) => {
@@ -295,7 +355,7 @@ const App: React.FC = () => {
             // Remove from public listing for everyone
             setPublicRooms(prev => prev.filter(r => r.id !== roomId));
             // Close for the current user (and any other simulated users on this client)
-            setRooms(prev => prev.filter(r => r.id !== roomId));
+            closeRoom(roomId);
             alert(`Room "${roomToShutdown.name}" [${roomToShutdown.id}] has been shut down.`);
         }
     };
@@ -356,9 +416,12 @@ const App: React.FC = () => {
                             onClose={() => closeRoom(room.id)}
                             onMinimize={() => updateRoomState(room.id, 'status', 'minimized')}
                             onFocus={() => bringToFront(room.id)}
-                            onUpdate={updateRoomState}
+                            onUpdatePosition={(pos) => updateRoomState(room.id, 'position', pos)}
                             onShutdown={() => shutdownRoom(room.id)}
                             onAdminAction={handleAdminAction}
+                            onRemoveLink={handleRemoveLink}
+                            onAddMessage={handleAddMessage}
+                            onAddLink={handleAddLink}
                         />
                     ))}
 

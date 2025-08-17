@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Room, User, Message, MusicLink } from '../types';
-import { CloseIcon, MinimizeIcon, MusicNoteIcon, SendIcon, UserIcon, CogIcon, StarIcon } from './icons';
+import { CloseIcon, MinimizeIcon, MusicNoteIcon, SendIcon, UserIcon, CogIcon, StarIcon, TrashIcon } from './icons';
 
 interface RoomProps {
     room: Room;
@@ -8,12 +8,18 @@ interface RoomProps {
     onClose: () => void;
     onMinimize: () => void;
     onFocus: () => void;
-    onUpdate: <K extends keyof Room>(roomId: string, key: K, value: Room[K]) => void;
+    onUpdatePosition: (position: { x: number, y: number }) => void;
     onShutdown: () => void;
     onAdminAction: (roomId: string, action: 'kick' | 'promote' | 'demote', targetUser: User) => void;
+    onRemoveLink: (roomId: string, linkId: string, user: User) => void;
+    onAddMessage: (roomId: string, message: Message) => void;
+    onAddLink: (roomId: string, link: MusicLink) => void;
 }
 
-const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMinimize, onFocus, onUpdate, onShutdown, onAdminAction }) => {
+const RoomComponent: React.FC<RoomProps> = ({ 
+    room, currentUser, onClose, onMinimize, onFocus, onUpdatePosition, 
+    onShutdown, onAdminAction, onRemoveLink, onAddMessage, onAddLink 
+}) => {
     const [input, setInput] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -51,8 +57,8 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
         x = Math.max(0, Math.min(x, window.innerWidth - nodeRef.current.offsetWidth));
         y = Math.max(0, Math.min(y, window.innerHeight - nodeRef.current.offsetHeight));
 
-        onUpdate(room.id, 'position', { x, y });
-    }, [isDragging, room.id, onUpdate]);
+        onUpdatePosition({ x, y });
+    }, [isDragging, onUpdatePosition]);
 
     const handleMouseUp = useCallback(() => {
         setIsDragging(false);
@@ -136,7 +142,7 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
             id: `link-${Date.now()}`, user: currentUser, url,
             platform, title, thumbnail, timestamp: Date.now(),
         };
-        onUpdate(room.id, 'musicLinks', [...room.musicLinks, newLink]);
+        onAddLink(room.id, newLink);
     };
 
     const handleSubmit = async () => {
@@ -150,7 +156,7 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
             const newMessage: Message = {
                 id: `msg-${Date.now()}`, user: currentUser, text: input, timestamp: Date.now(),
             };
-            onUpdate(room.id, 'messages', [...room.messages, newMessage]);
+            onAddMessage(room.id, newMessage);
         }
         setInput('');
     };
@@ -286,7 +292,22 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
                             </div>
                             <div className="flex-grow p-2 overflow-y-auto">
                                 {room.musicLinks.slice().reverse().map(link => (
-                                     <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="block mb-2 p-2 bg-[#021002] hover:bg-green-900/50 transition-colors duration-200">
+                                     <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="relative block mb-2 p-2 bg-[#021002] hover:bg-green-900/50 transition-colors duration-200 group">
+                                        {link.user.id === currentUser.id && (
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    if (window.confirm(`Are you sure you want to remove this link: "${link.title}"?`)) {
+                                                        onRemoveLink(room.id, link.id, currentUser);
+                                                    }
+                                                }}
+                                                className="absolute top-1 right-1 p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                                title="Remove link"
+                                            >
+                                                <TrashIcon />
+                                            </button>
+                                        )}
                                         <div className="flex items-start gap-3">
                                             {link.thumbnail ? 
                                                 <img src={link.thumbnail} alt={link.title} className="w-16 h-16 object-cover border border-[#00FF41]/50"/>
