@@ -5,9 +5,10 @@ import { CloseIcon } from './icons';
 interface JoinRoomModalProps {
     onClose: () => void;
     onJoin: (code: string) => void;
+    roomName?: string;
 }
 
-const JoinRoomModal: React.FC<JoinRoomModalProps> = ({ onClose, onJoin }) => {
+const JoinRoomModal: React.FC<JoinRoomModalProps> = ({ onClose, onJoin, roomName }) => {
     const [joinCode, setJoinCode] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -24,7 +25,12 @@ const JoinRoomModal: React.FC<JoinRoomModalProps> = ({ onClose, onJoin }) => {
                 <button onClick={onClose} className="absolute top-2 right-2 p-1 hover:text-red-500">
                     <CloseIcon />
                 </button>
-                <h2 className="text-3xl mb-4 matrix-text text-center">JOIN PRIVATE ROOM</h2>
+                <h2 className="text-3xl mb-2 matrix-text text-center">
+                    {roomName ? `JOIN "${roomName}"` : 'JOIN WITH CODE'}
+                </h2>
+                {roomName && (
+                    <p className="text-center text-gray-400 mb-4">This room is private. Please enter the code to connect.</p>
+                )}
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <input
                         type="text"

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Room, User, Message, MusicLink } from '../types';
-import { CloseIcon, MinimizeIcon, MusicNoteIcon, SendIcon, UserIcon, CogIcon } from './icons';
+import { CloseIcon, MinimizeIcon, MusicNoteIcon, SendIcon, UserIcon, CogIcon, StarIcon } from './icons';
 
 interface RoomProps {
     room: Room;
@@ -9,19 +9,28 @@ interface RoomProps {
     onMinimize: () => void;
     onFocus: () => void;
     onUpdate: <K extends keyof Room>(roomId: string, key: K, value: Room[K]) => void;
+    onShutdown: () => void;
+    onAdminAction: (roomId: string, action: 'kick' | 'promote' | 'demote', targetUser: User) => void;
 }
 
-const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMinimize, onFocus, onUpdate }) => {
+const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMinimize, onFocus, onUpdate, onShutdown, onAdminAction }) => {
     const [input, setInput] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [copyStatus, setCopyStatus] = useState('COPY');
     const dragRef = useRef({ x: 0, y: 0 });
     const nodeRef = useRef<HTMLDivElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
-    const isCreator = room.creatorId === currentUser.id;
+    const isAdmin = room.adminIds.includes(currentUser.id);
 
     const formatTimestamp = (ts: number) => new Date(ts).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+
+    const handleCopyCode = () => {
+        navigator.clipboard.writeText(room.id);
+        setCopyStatus('COPIED!');
+        setTimeout(() => setCopyStatus('COPY'), 2000);
+    };
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!nodeRef.current || (e.target as HTMLElement).closest('button')) return;
@@ -156,7 +165,7 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
             <header className="flex items-center justify-between p-1 bg-black cursor-move" onMouseDown={handleMouseDown}>
                 <h2 className="text-lg matrix-text select-none pl-2">{`// ROOM: ${room.name} [${room.id}]`}</h2>
                 <div className="flex items-center">
-                    {isCreator && (
+                    {isAdmin && (
                         <button onClick={() => setShowSettings(!showSettings)} className={`p-1 hover:bg-[#00FF41] hover:text-black ${showSettings ? 'bg-[#00FF41] text-black' : ''}`}><CogIcon /></button>
                     )}
                     <button onClick={onMinimize} className="p-1 hover:bg-[#00FF41] hover:text-black"><MinimizeIcon /></button>
@@ -169,13 +178,21 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
                 <div className="bg-black flex flex-col">
                     <div className="flex-grow p-2 overflow-y-auto">
                         {room.messages.map(msg => (
-                            <div key={msg.id} className="mb-2 text-base leading-tight break-words">
-                                <span className="text-gray-500 text-xs">{formatTimestamp(msg.timestamp)}</span>
-                                <div>
-                                    <span style={{ color: msg.user.color || '#00FF41' }}>{msg.user.name}:~$ </span>
-                                    <span>{msg.text}</span>
+                            msg.user.id === 'system' ? (
+                                <div key={msg.id} className="my-2 text-sm text-center text-yellow-400/90 italic">
+                                    <span className="px-2 py-1 bg-yellow-400/10 rounded-md">
+                                        {msg.text}
+                                    </span>
                                 </div>
-                            </div>
+                             ) : (
+                                <div key={msg.id} className="mb-2 text-base leading-tight break-words">
+                                    <span className="text-gray-500 text-xs">{formatTimestamp(msg.timestamp)}</span>
+                                    <div>
+                                        <span style={{ color: msg.user.color || '#00FF41' }} className="font-bold">{msg.user.name}</span>
+                                        <span>:~$ {msg.text}</span>
+                                    </div>
+                                </div>
+                            )
                         ))}
                         <div ref={chatEndRef} />
                     </div>
@@ -183,24 +200,85 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
 
                 {/* Music & Users Section */}
                 <div className="bg-black flex flex-col overflow-hidden">
-                     {showSettings && isCreator ? (
-                        <div className="p-2 flex flex-col gap-2">
-                             <h3 className="matrix-text text-xl border-b border-[#00FF41] pb-1">ADMIN CONTROLS</h3>
-                             <p className="text-sm">Rename Room:</p>
-                             <input type="text" defaultValue={room.name} className="p-1 matrix-input"/>
-                             <button className="matrix-button p-1 text-sm">SAVE</button>
-                             <p className="text-sm mt-2">Kick User:</p>
-                             <select className="p-1 matrix-input bg-black">
-                                {room.users.filter(u => u.id !== currentUser.id).map(u => <option key={u.id}>{u.name}</option>)}
-                             </select>
-                             <button className="matrix-button p-1 text-sm text-red-500 border-red-500 hover:bg-red-500 hover:text-black">KICK</button>
+                     {showSettings && isAdmin ? (
+                        <div className="p-2 flex flex-col h-full">
+                             <h3 className="matrix-text text-xl border-b border-[#00FF41] pb-1 mb-2">ADMIN CONTROLS</h3>
+                            
+                             <div className="mb-4">
+                                <h4 className="text-lg matrix-text">ROOM CODE</h4>
+                                <div className="flex items-stretch gap-px">
+                                    <p className="flex-grow p-2 matrix-input bg-black font-mono text-xl select-all">{room.id}</p>
+                                    <button onClick={handleCopyCode} className="px-4 matrix-button text-lg w-28">{copyStatus}</button>
+                                </div>
+                                {room.isPrivate && <p className="text-xs text-gray-400 mt-1">Share this code to invite others.</p>}
+                            </div>
+
+                             <div className="flex-grow overflow-y-auto pr-2">
+                                {room.users.map(user => {
+                                    const isTargetAdmin = room.adminIds.includes(user.id);
+                                    const isTargetCreator = room.creatorId === user.id;
+
+                                    return (
+                                        <div key={user.id} className="flex items-center justify-between p-1 hover:bg-[#001c05]">
+                                            <div className="flex items-center gap-2">
+                                                <span style={{color: user.color}}>{user.name}</span>
+                                                {isTargetAdmin && <StarIcon />}
+                                                {user.id === currentUser.id && <span className="text-xs text-gray-400">(You)</span>}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {isTargetCreator ? (
+                                                    <span className="text-xs text-yellow-400">Creator</span>
+                                                ) : user.id !== currentUser.id ? (
+                                                   <>
+                                                        {isTargetAdmin ? (
+                                                             <button onClick={() => onAdminAction(room.id, 'demote', user)} className="matrix-button text-xs px-2 py-0.5">Demote</button>
+                                                        ) : (
+                                                             <button onClick={() => onAdminAction(room.id, 'promote', user)} className="matrix-button text-xs px-2 py-0.5">Promote</button>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => {
+                                                                if(window.confirm(`Are you sure you want to kick ${user.name}?`)) {
+                                                                    onAdminAction(room.id, 'kick', user)
+                                                                }
+                                                            }}
+                                                            className="matrix-button text-xs px-2 py-0.5 text-red-500 border-red-500 hover:bg-red-500 hover:text-black">
+                                                            Kick
+                                                        </button>
+                                                   </>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                             </div>
+                             {room.creatorId === currentUser.id && (
+                                <>
+                                    <hr className="border-red-500/50 my-2" />
+                                    <p className="text-sm text-red-500 mb-1">Permanently close this room for all users. This action cannot be undone.</p>
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm('Are you sure you want to permanently shut down this room for everyone?')) {
+                                                onShutdown();
+                                            }
+                                        }}
+                                        className="w-full matrix-button p-1 text-sm text-red-500 border-red-500 hover:bg-red-500 hover:text-black"
+                                    >
+                                        SHUTDOWN ROOM
+                                    </button>
+                                </>
+                             )}
                         </div>
                     ) : (
                         <>
                             <div className="p-2 border-b border-[#00FF41]">
                                 <h3 className="matrix-text text-xl flex items-center gap-2"><UserIcon /> USERS ({room.users.length})</h3>
-                                <div className="text-sm flex flex-wrap gap-x-4">
-                                    {room.users.map(u => <span key={u.id} style={{color: u.color}}>{u.name}</span>)}
+                                <div className="text-sm flex flex-wrap gap-x-4 gap-y-1">
+                                    {room.users.map(u => (
+                                        <span key={u.id} className="flex items-center gap-1" style={{color: u.color}}>
+                                            {u.name}
+                                            {room.adminIds.includes(u.id) && <StarIcon />}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
                             <div className="p-2 border-b border-[#00FF41]">
@@ -216,6 +294,7 @@ const RoomComponent: React.FC<RoomProps> = ({ room, currentUser, onClose, onMini
                                             }
                                             <div className="flex-1 break-words">
                                                 <p className="text-sm font-bold leading-tight">{link.title}</p>
+
                                                 <p className="text-xs mt-1" style={{color: link.user.color}}>Shared by {link.user.name}</p>
                                                 <p className="text-xs text-gray-500">{formatTimestamp(link.timestamp)}</p>
                                                 <p className="text-xs text-gray-400 underline mt-1">{link.platform}</p>

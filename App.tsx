@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Room, User } from './types';
+import { Room, User, Message } from './types';
 import Home from './components/Lobby';
 import RoomComponent from './components/Room';
 import MinimizedRoomTab from './components/MinimizedRoomTab';
@@ -11,6 +11,14 @@ import LikedRooms from './components/LikedRooms';
 const generateRoomCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
+
+const mockUsers: User[] = [
+    { id: 'mock-1', name: 'Synthwave_Kid', color: '#00FFFF' },
+    { id: 'mock-2', name: 'Glitch_Master', color: '#FF00FF' },
+    { id: 'mock-3', name: 'Beat_Prophet', color: '#FFFF00' },
+    { id: 'mock-4', name: 'Rhythm_Rider', color: '#39FF14' },
+    { id: 'mock-5', name: 'Echo_Drifter', color: '#FF5F1F' },
+];
 
 const App: React.FC = () => {
     const [allUsers, setAllUsers] = useState<User[]>(() => {
@@ -43,13 +51,13 @@ const App: React.FC = () => {
         // Mock public rooms data
         setPublicRooms([
             {
-                id: 'CYBERPUNK', name: 'Cyberpunk Beats', description: 'Synthwave, Darksynth, and Cyberpunk ambient. Drop your futuristic tracks.', tags: ['synthwave', 'darksynth', 'cyberpunk'], isPrivate: false, creatorId: 'system-user', status: 'open',
-                position: { x: 0, y: 0 }, size: { width: 800, height: 600 }, messages: [], musicLinks: [], users: [], zIndex: 0,
+                id: 'CYBERPUNK', name: 'Cyberpunk Beats', description: 'Synthwave, Darksynth, and Cyberpunk ambient. Drop your futuristic tracks.', tags: ['synthwave', 'darksynth', 'cyberpunk'], isPrivate: false, creatorId: 'system-user', adminIds: ['system-user'], status: 'open',
+                position: { x: 0, y: 0 }, size: { width: 800, height: 600 }, messages: [], musicLinks: [], users: [mockUsers[0], mockUsers[1], mockUsers[4]], zIndex: 0,
                 userCount: 42, songCount: 138,
             },
             {
-                id: 'LOFIHIVE', name: 'Lofi Hive', description: 'Chill beats to relax/study to. Keep it mellow.', tags: ['lofi', 'chillhop', 'instrumental'], isPrivate: false, creatorId: 'system-user', status: 'open',
-                position: { x: 0, y: 0 }, size: { width: 800, height: 600 }, messages: [], musicLinks: [], users: [], zIndex: 0,
+                id: 'LOFIHIVE', name: 'Lofi Hive', description: 'Chill beats to relax/study to. Keep it mellow.', tags: ['lofi', 'chillhop', 'instrumental'], isPrivate: false, creatorId: 'system-user-2', adminIds: ['system-user-2'], status: 'open',
+                position: { x: 0, y: 0 }, size: { width: 800, height: 600 }, messages: [], musicLinks: [], users: [mockUsers[2], mockUsers[3]], zIndex: 0,
                 userCount: 127, songCount: 301,
             },
         ]);
@@ -163,44 +171,55 @@ const App: React.FC = () => {
             description,
             tags,
             creatorId: currentUser.id,
+            adminIds: [currentUser.id],
             status: 'open',
             position: positionNewRoom(),
             size: { width: 800, height: 600 },
-            messages: [{ id: 'msg-0', user: {id: 'system', name: 'system', color: '#FFFF00'}, text: `Room created by ${currentUser.name}. ${isPrivate ? `Share this code: ${newRoomCode}` : ''}`, timestamp: Date.now() }],
+            messages: [{ id: 'msg-0', user: {id: 'system', name: 'system', color: '#FFFF00'}, text: `Room created by ${currentUser.name}. ${isPrivate ? `The invite code is: ${newRoomCode}` : ''}`, timestamp: Date.now() }],
             musicLinks: [],
             users: [currentUser],
             zIndex: nextZIndex,
         };
         setRooms(prev => [...prev, newRoom]);
-        if (!isPrivate) {
-            setPublicRooms(prev => [newRoom, ...prev]);
-        }
+        // Add all new rooms to the public list to be displayed
+        setPublicRooms(prev => [newRoom, ...prev]);
         setNextZIndex(prev => prev + 1);
     }, [nextZIndex, currentUser]);
 
     const joinRoom = useCallback((roomId: string) => {
         if (!currentUser) return;
-        if (rooms.some(r => r.id === roomId)) {
-            bringToFront(roomId);
+        const code = roomId.toUpperCase(); // Normalize code
+
+        // 1. If user is already in the room, bring it to front.
+        const existingRoom = rooms.find(r => r.id === code);
+        if (existingRoom) {
+            if (existingRoom.status === 'minimized') {
+                 updateRoomState(code, 'status', 'open');
+            }
+            bringToFront(code);
             return;
         }
-        const roomToJoin = publicRooms.find(r => r.id === roomId) || rooms.find(r => r.id === roomId);
+
+        // 2. Find the room from the master list of all available rooms.
+        const roomToJoin = publicRooms.find(r => r.id === code);
+
+        // 3. If room exists, join it.
         if (roomToJoin) {
-            if (roomToJoin.isPrivate && !rooms.some(r => r.id === roomId)) {
-                 alert("Joining private rooms via code is a simulated feature. This room code is invalid or the room doesn't exist.");
-                 return;
-            }
             const newRoomInstance = {
                 ...roomToJoin,
                 position: positionNewRoom(),
                 status: 'open' as const,
-                users: [currentUser, ...roomToJoin.users.filter(u => u.id !== currentUser.id)],
+                 // Add current user, but don't duplicate if they are already in the conceptual user list
+                users: roomToJoin.users.some(u => u.id === currentUser.id) 
+                    ? roomToJoin.users 
+                    : [...roomToJoin.users, currentUser],
                 zIndex: nextZIndex,
             };
             setRooms(prev => [...prev, newRoomInstance]);
             setNextZIndex(prev => prev + 1);
         } else {
-            alert("Joining private rooms via code is a simulated feature. This room code is invalid or the room doesn't exist.");
+            // 4. If room doesn't exist, show error.
+            alert("Invalid room code. The room may have been shut down or the code is incorrect.");
         }
     }, [rooms, publicRooms, nextZIndex, currentUser]);
 
@@ -220,8 +239,65 @@ const App: React.FC = () => {
         setRooms(prev => prev.map(r => r.id === roomId ? { ...r, [key]: value } : r));
     };
 
+    const addSystemMessage = (roomId: string, text: string) => {
+        const systemMessage: Message = {
+            id: `msg-${Date.now()}`,
+            user: { id: 'system', name: 'system', color: '#FFFF00' },
+            text,
+            timestamp: Date.now(),
+        };
+        updateRoomState(roomId, 'messages', [...(rooms.find(r => r.id === roomId)?.messages || []), systemMessage]);
+    };
+
+    const handleAdminAction = (roomId: string, action: 'kick' | 'promote' | 'demote', targetUser: User) => {
+        if (!currentUser) return;
+
+        const room = rooms.find(r => r.id === roomId);
+        if (!room || !room.adminIds.includes(currentUser.id)) return;
+
+        switch (action) {
+            case 'kick':
+                addSystemMessage(roomId, `${targetUser.name} was kicked from the room by ${currentUser.name}.`);
+                
+                // Update user list for everyone still in the room.
+                updateRoomState(roomId, 'users', room.users.filter(u => u.id !== targetUser.id));
+
+                // If the kicked user is the current user, close their window and notify them.
+                if (targetUser.id === currentUser.id) {
+                    setTimeout(() => {
+                        closeRoom(roomId);
+                        alert(`You have been kicked from "${room.name}".`);
+                    }, 500); // Delay to allow user to see the message.
+                }
+                break;
+            case 'promote':
+                if (!room.adminIds.includes(targetUser.id)) {
+                    updateRoomState(roomId, 'adminIds', [...room.adminIds, targetUser.id]);
+                    addSystemMessage(roomId, `${targetUser.name} was promoted to admin by ${currentUser.name}.`);
+                }
+                break;
+            case 'demote':
+                if (room.creatorId !== targetUser.id) {
+                    updateRoomState(roomId, 'adminIds', room.adminIds.filter(id => id !== targetUser.id));
+                    addSystemMessage(roomId, `${targetUser.name} was demoted by ${currentUser.name}.`);
+                }
+                break;
+        }
+    };
+
     const closeRoom = (roomId: string) => {
         setRooms(prev => prev.filter(r => r.id !== roomId));
+    };
+
+    const shutdownRoom = (roomId: string) => {
+        const roomToShutdown = publicRooms.find(r => r.id === roomId) || rooms.find(r => r.id === roomId);
+        if (roomToShutdown) {
+            // Remove from public listing for everyone
+            setPublicRooms(prev => prev.filter(r => r.id !== roomId));
+            // Close for the current user (and any other simulated users on this client)
+            setRooms(prev => prev.filter(r => r.id !== roomId));
+            alert(`Room "${roomToShutdown.name}" [${roomToShutdown.id}] has been shut down.`);
+        }
     };
 
     const openRooms = rooms.filter(r => r.status === 'open');
@@ -281,6 +357,8 @@ const App: React.FC = () => {
                             onMinimize={() => updateRoomState(room.id, 'status', 'minimized')}
                             onFocus={() => bringToFront(room.id)}
                             onUpdate={updateRoomState}
+                            onShutdown={() => shutdownRoom(room.id)}
+                            onAdminAction={handleAdminAction}
                         />
                     ))}
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Room } from '../types';
 import CreateRoomModal from './CreateRoomModal';
 import JoinRoomModal from './JoinRoomModal';
-import { GlobeAltIcon, MusicNoteIcon, UserIcon, HeartIcon, HeartSolidIcon } from './icons';
+import { GlobeAltIcon, MusicNoteIcon, UserIcon, HeartIcon, HeartSolidIcon, LockClosedIcon } from './icons';
 
 interface HomeProps {
     publicRooms: Room[];
@@ -13,9 +13,23 @@ interface HomeProps {
     searchQuery: string;
 }
 
+interface JoinModalState {
+    isOpen: boolean;
+    roomName?: string;
+}
+
 const Home: React.FC<HomeProps> = ({ publicRooms, createRoom, joinRoom, likedRoomIds, onLikeToggle, searchQuery }) => {
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-    const [isJoinModalOpen, setJoinModalOpen] = useState(false);
+    const [joinModalState, setJoinModalState] = useState<JoinModalState>({ isOpen: false });
+
+
+    const handleJoinClick = (room: Room) => {
+        if (room.isPrivate) {
+            setJoinModalState({ isOpen: true, roomName: room.name });
+        } else {
+            joinRoom(room.id);
+        }
+    };
 
     return (
         <>
@@ -29,7 +43,7 @@ const Home: React.FC<HomeProps> = ({ publicRooms, createRoom, joinRoom, likedRoo
                         <button onClick={() => setCreateModalOpen(true)} className="px-6 py-3 text-2xl matrix-button flex-shrink-0">
                             {'>> CREATE ROOM <<'}
                         </button>
-                         <button onClick={() => setJoinModalOpen(true)} className="px-6 py-3 text-2xl matrix-button flex-shrink-0">
+                         <button onClick={() => setJoinModalState({ isOpen: true })} className="px-6 py-3 text-2xl matrix-button flex-shrink-0">
                             {'>> JOIN WITH CODE <<'}
                         </button>
                     </div>
@@ -54,7 +68,7 @@ const Home: React.FC<HomeProps> = ({ publicRooms, createRoom, joinRoom, likedRoo
                                         </button>
                                     </div>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <GlobeAltIcon />
+                                        {room.isPrivate ? <LockClosedIcon /> : <GlobeAltIcon />}
                                         <h3 className="text-2xl matrix-text truncate">{room.name}</h3>
                                     </div>
                                     <div className="flex flex-wrap gap-1 mb-3">
@@ -64,10 +78,10 @@ const Home: React.FC<HomeProps> = ({ publicRooms, createRoom, joinRoom, likedRoo
                                         {room.description}
                                     </p>
                                     <div className="flex-grow space-y-2 text-lg mb-4">
-                                        <p className="flex items-center gap-2"><UserIcon /> {room.userCount} Users</p>
-                                        <p className="flex items-center gap-2"><MusicNoteIcon /> {room.songCount} Jams</p>
+                                        <p className="flex items-center gap-2"><UserIcon /> {room.userCount || room.users.length} Users</p>
+                                        <p className="flex items-center gap-2"><MusicNoteIcon /> {room.songCount || room.musicLinks.length} Jams</p>
                                     </div>
-                                    <button onClick={() => joinRoom(room.id)} className="w-full p-2 matrix-button text-lg z-0">
+                                    <button onClick={() => handleJoinClick(room)} className="w-full p-2 matrix-button text-lg z-0">
                                         JOIN ROOM
                                     </button>
                                 </div>
@@ -87,9 +101,10 @@ const Home: React.FC<HomeProps> = ({ publicRooms, createRoom, joinRoom, likedRoo
                     onCreate={createRoom}
                 />
             )}
-            {isJoinModalOpen && (
+            {joinModalState.isOpen && (
                 <JoinRoomModal
-                    onClose={() => setJoinModalOpen(false)}
+                    roomName={joinModalState.roomName}
+                    onClose={() => setJoinModalState({ isOpen: false })}
                     onJoin={joinRoom}
                 />
             )}

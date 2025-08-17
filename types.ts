@@ -30,6 +30,7 @@ export interface Room {
   tags: string[];
   isPrivate: boolean;
   creatorId: string;
+  adminIds: string[];
   status: 'open' | 'minimized';
   position: { x: number; y: number };
   size: { width: number; height: number };
