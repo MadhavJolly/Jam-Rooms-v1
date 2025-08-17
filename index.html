@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jam Rooms</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        html, body, #root {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Creates a stable, non-shifting viewport */
+        }
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #000;
+            color: #00FF41;
+        }
+        .matrix-text {
+            color: #00FF41;
+            text-shadow: 0 0 3px #00FF41;
+        }
+        .matrix-border {
+            border: 1px solid #00FF41;
+            box-shadow: 0 0 5px #00FF41, inset 0 0 5px #00FF41;
+        }
+        .matrix-bg {
+            background-color: rgba(0, 15, 0, 0.85);
+        }
+        .matrix-input {
+            background-color: #000;
+            border: 1px solid #00FF41;
+            color: #00FF41;
+        }
+        .matrix-input::placeholder {
+            color: #005215;
+        }
+        .matrix-input:focus {
+            outline: none;
+            box-shadow: 0 0 6px #00FF41;
+        }
+        .matrix-button {
+            border: 1px solid #00FF41;
+            background-color: #002200;
+            transition: all 0.2s ease-in-out;
+        }
+        .matrix-button:hover {
+            background-color: #00FF41;
+            color: #000;
+            box-shadow: 0 0 8px #00FF41;
+        }
+        .matrix-button:disabled {
+            border-color: #005215;
+            color: #005215;
+            background-color: #001100;
+            cursor: not-allowed;
+        }
+        /* Custom scrollbar for a more thematic feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00FF41;
+            border: 1px solid #000;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0aff58;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "react": "https://esm.sh/react@^19.1.1",
+    "react/": "https://esm.sh/react@^19.1.1/"
+  }
+}
+</script>
+</head>
+<body>
+    <canvas id="matrix-canvas" class="absolute top-0 left-0 w-full h-full z-0"></canvas>
+    <div id="root" class="relative z-10"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "name": "Jam Rooms",
+  "description": "A matrix-themed chat application where users can create 'Rooms' to share music links from different platforms and chat with friends. Rooms can be public or private, joinable with a unique code, and can be minimized within the UI.",
+  "requestFramePermissions": []
+}
