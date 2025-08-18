@@ -4,6 +4,16 @@ export interface User {
   name: string;
   color: string;
   password?: string;
+  bio?: string;
+  status?: string;
+  onlineStatus?: 'online' | 'offline';
+  favoriteGenres?: string[];
+  stats?: {
+    roomsCreated: number;
+    tracksShared: number;
+    messagesPosted: number;
+    likesReceived: number;
+  }
 }
 
 export interface Message {
@@ -21,6 +31,7 @@ export interface MusicLink {
   title: string;
   thumbnail?: string;
   timestamp: number;
+  likes: string[]; // Array of user IDs who liked it
 }
 
 export interface Room {

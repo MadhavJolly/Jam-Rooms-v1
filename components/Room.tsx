@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Room, User, Message, MusicLink } from '../types';
-import { CloseIcon, MinimizeIcon, MusicNoteIcon, SendIcon, UserIcon, CogIcon, StarIcon, TrashIcon } from './icons';
+import { CloseIcon, MinimizeIcon, MusicNoteIcon, SendIcon, UserIcon, CogIcon, StarIcon, TrashIcon, HeartIcon, HeartSolidIcon } from './icons';
 
 interface RoomProps {
     room: Room;
@@ -14,11 +14,12 @@ interface RoomProps {
     onRemoveLink: (roomId: string, linkId: string, user: User) => void;
     onAddMessage: (roomId: string, message: Message) => void;
     onAddLink: (roomId: string, link: MusicLink) => void;
+    onLikeTrack: (roomId: string, linkId: string) => void;
 }
 
 const RoomComponent: React.FC<RoomProps> = ({ 
     room, currentUser, onClose, onMinimize, onFocus, onUpdatePosition, 
-    onShutdown, onAdminAction, onRemoveLink, onAddMessage, onAddLink 
+    onShutdown, onAdminAction, onRemoveLink, onAddMessage, onAddLink, onLikeTrack
 }) => {
     const [input, setInput] = useState('');
     const [isDragging, setIsDragging] = useState(false);
@@ -118,8 +119,6 @@ const RoomComponent: React.FC<RoomProps> = ({
                     thumbnail = data.thumbnail_url || undefined;
                 }
             } else if (platform === 'YouTube') {
-                 // oEmbed for YouTube is heavily restricted by CORS. This is a best-effort approach.
-                 // A backend proxy would be required for reliability.
                 const response = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
                  if(response.ok) {
                     const data = await response.json();
@@ -140,7 +139,7 @@ const RoomComponent: React.FC<RoomProps> = ({
 
         const newLink: MusicLink = {
             id: `link-${Date.now()}`, user: currentUser, url,
-            platform, title, thumbnail, timestamp: Date.now(),
+            platform, title, thumbnail, timestamp: Date.now(), likes: []
         };
         onAddLink(room.id, newLink);
     };
@@ -291,38 +290,52 @@ const RoomComponent: React.FC<RoomProps> = ({
                                 <h3 className="matrix-text text-xl flex items-center gap-2"><MusicNoteIcon />SHARED JAMS ({room.musicLinks.length})</h3>
                             </div>
                             <div className="flex-grow p-2 overflow-y-auto">
-                                {room.musicLinks.slice().reverse().map(link => (
-                                     <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="relative block mb-2 p-2 bg-[#021002] hover:bg-green-900/50 transition-colors duration-200 group">
-                                        {link.user.id === currentUser.id && (
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    if (window.confirm(`Are you sure you want to remove this link: "${link.title}"?`)) {
-                                                        onRemoveLink(room.id, link.id, currentUser);
-                                                    }
-                                                }}
-                                                className="absolute top-1 right-1 p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                                title="Remove link"
-                                            >
-                                                <TrashIcon />
-                                            </button>
-                                        )}
-                                        <div className="flex items-start gap-3">
-                                            {link.thumbnail ? 
-                                                <img src={link.thumbnail} alt={link.title} className="w-16 h-16 object-cover border border-[#00FF41]/50"/>
-                                                : <div className="w-16 h-16 flex items-center justify-center border border-[#00FF41]/50 bg-black"><MusicNoteIcon /></div>
-                                            }
-                                            <div className="flex-1 break-words">
-                                                <p className="text-sm font-bold leading-tight">{link.title}</p>
-
-                                                <p className="text-xs mt-1" style={{color: link.user.color}}>Shared by {link.user.name}</p>
-                                                <p className="text-xs text-gray-500">{formatTimestamp(link.timestamp)}</p>
-                                                <p className="text-xs text-gray-400 underline mt-1">{link.platform}</p>
-                                            </div>
+                                {room.musicLinks.slice().reverse().map(link => {
+                                    const isLiked = link.likes.includes(currentUser.id);
+                                    return (
+                                     <div key={link.id} className="relative mb-2 p-2 bg-[#021002] hover:bg-green-900/50 transition-colors duration-200 group">
+                                        <div className="absolute top-1 right-1 flex items-center gap-2 z-10">
+                                            {link.user.id === currentUser.id && (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (window.confirm(`Are you sure you want to remove this link: "${link.title}"?`)) {
+                                                            onRemoveLink(room.id, link.id, currentUser);
+                                                        }
+                                                    }}
+                                                    className="p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    title="Remove link"
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            )}
                                         </div>
-                                    </a>
-                                ))}
+                                        <a href={link.url} target="_blank" rel="noopener noreferrer" className="block">
+                                            <div className="flex items-start gap-3">
+                                                {link.thumbnail ? 
+                                                    <img src={link.thumbnail} alt={link.title} className="w-16 h-16 object-cover border border-[#00FF41]/50"/>
+                                                    : <div className="w-16 h-16 flex items-center justify-center border border-[#00FF41]/50 bg-black"><MusicNoteIcon /></div>
+                                                }
+                                                <div className="flex-1 break-words">
+                                                    <p className="text-sm font-bold leading-tight">{link.title}</p>
+                                                    <p className="text-xs mt-1" style={{color: link.user.color}}>Shared by {link.user.name}</p>
+                                                    <p className="text-xs text-gray-500">{formatTimestamp(link.timestamp)}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                         <button 
+                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLikeTrack(room.id, link.id); }}
+                                                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white"
+                                                         >
+                                                             {isLiked ? <HeartSolidIcon /> : <HeartIcon />}
+                                                             <span>{link.likes.length}</span>
+                                                         </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </a>
+                                     </div>
+                                    )
+                                })}
                             </div>
                         </>
                     )}
