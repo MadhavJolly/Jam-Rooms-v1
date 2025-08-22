@@ -1,4 +1,12 @@
 
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+  timestamp: number;
+  read: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -8,6 +16,8 @@ export interface User {
   status?: string;
   onlineStatus?: 'online' | 'offline';
   favoriteGenres?: string[];
+  friendIds?: string[];
+  incomingFriendRequests?: string[];
   stats?: {
     roomsCreated: number;
     tracksShared: number;
@@ -51,4 +61,12 @@ export interface Room {
   zIndex: number;
   userCount?: number;
   songCount?: number;
+}
+
+export interface ConfirmationState {
+  title: string;
+  message: React.ReactNode;
+  onConfirm: () => void;
+  confirmText?: string;
+  confirmClass?: string;
 }

@@ -1,5 +1,6 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Room, User, Message, MusicLink } from './types';
+import { Room, User, Message, MusicLink, ConfirmationState, Notification } from './types';
 import Home from './components/Lobby';
 import RoomComponent from './components/Room';
 import MinimizedRoomTab from './components/MinimizedRoomTab';
@@ -7,17 +8,23 @@ import Auth from './components/Auth';
 import Navbar from './components/Navbar';
 import Profile from './components/Profile';
 import LikedRooms from './components/LikedRooms';
+import Friends from './components/Friends';
+import ConfirmationModal from './components/ConfirmationModal';
+import NotificationContainer from './components/NotificationContainer';
+import NotificationPanel from './components/NotificationPanel';
+import ShareRoomModal from './components/ShareRoomModal';
+
 
 const generateRoomCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
 
 const mockUsers: User[] = [
-    { id: 'mock-1', name: 'Synthwave_Kid', color: '#00FFFF', onlineStatus: 'online', status: 'Cruising the neon grid', bio: 'Just a guy looking for the next best synth track.', favoriteGenres: ['synthwave', 'retrowave'] },
-    { id: 'mock-2', name: 'Glitch_Master', color: '#FF00FF', onlineStatus: 'online', status: 'Deconstructing beats', bio: 'If it doesn\'t glitch, it isn\'t music.', favoriteGenres: ['glitch', 'idm', 'experimental'] },
-    { id: 'mock-3', name: 'Beat_Prophet', color: '#FFFF00', onlineStatus: 'offline', status: 'In the zone', bio: 'Producer and DJ. All about that lofi life.', favoriteGenres: ['lofi hip-hop', 'chillhop'] },
-    { id: 'mock-4', name: 'Rhythm_Rider', color: '#39FF14', onlineStatus: 'online', bio: 'Riding the sound waves.', favoriteGenres: ['drum & bass', 'jungle'] },
-    { id: 'mock-5', name: 'Echo_Drifter', color: '#FF5F1F', onlineStatus: 'online', bio: 'Ambient soundscapes and dreamy vocals are my jam.', favoriteGenres: ['ambient', 'dreampop', 'shoegaze'] },
+    { id: 'mock-1', name: 'Synthwave_Kid', color: '#00FFFF', onlineStatus: 'online', status: 'Cruising the neon grid', bio: 'Just a guy looking for the next best synth track.', favoriteGenres: ['synthwave', 'retrowave'], friendIds: [], incomingFriendRequests: [] },
+    { id: 'mock-2', name: 'Glitch_Master', color: '#FF00FF', onlineStatus: 'online', status: 'Deconstructing beats', bio: 'If it doesn\'t glitch, it isn\'t music.', favoriteGenres: ['glitch', 'idm', 'experimental'], friendIds: [], incomingFriendRequests: [] },
+    { id: 'mock-3', name: 'Beat_Prophet', color: '#FFFF00', onlineStatus: 'offline', status: 'In the zone', bio: 'Producer and DJ. All about that lofi life.', favoriteGenres: ['lofi hip-hop', 'chillhop'], friendIds: [], incomingFriendRequests: [] },
+    { id: 'mock-4', name: 'Rhythm_Rider', color: '#39FF14', onlineStatus: 'online', bio: 'Riding the sound waves.', favoriteGenres: ['drum & bass', 'jungle'], friendIds: [], incomingFriendRequests: [] },
+    { id: 'mock-5', name: 'Echo_Drifter', color: '#FF5F1F', onlineStatus: 'online', bio: 'Ambient soundscapes and dreamy vocals are my jam.', favoriteGenres: ['ambient', 'dreampop', 'shoegaze'], friendIds: [], incomingFriendRequests: [] },
 ];
 
 const mockMusicLinks: MusicLink[] = [
@@ -30,10 +37,19 @@ const App: React.FC = () => {
     const [allUsers, setAllUsers] = useState<User[]>(() => {
         try {
             const savedUsers = localStorage.getItem('jam_rooms_users');
-            return savedUsers ? JSON.parse(savedUsers) : [];
+            const parsedUsers = savedUsers ? JSON.parse(savedUsers) : [];
+            // Merge with mock users, giving precedence to saved data
+            const userMap = new Map<string, User>();
+            for (const user of mockUsers) {
+                userMap.set(user.id, user);
+            }
+            for (const user of parsedUsers) {
+                userMap.set(user.id, user); // Overwrites mock if ID matches
+            }
+            return Array.from(userMap.values());
         } catch (error) {
             console.error('Failed to parse users from localStorage', error);
-            return [];
+            return mockUsers; // Fallback to mocks
         }
     });
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -41,8 +57,13 @@ const App: React.FC = () => {
     const [publicRooms, setPublicRooms] = useState<Room[]>([]);
     const [likedRoomIds, setLikedRoomIds] = useState<Set<string>>(new Set());
     const [nextZIndex, setNextZIndex] = useState(10);
-    const [currentPage, setCurrentPage] = useState<'home' | 'liked' | 'profile'>('home');
+    const [currentPage, setCurrentPage] = useState<'home' | 'liked' | 'profile' | 'friends'>('home');
+    const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
+    const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
+    const [sharingRoom, setSharingRoom] = useState<Room | null>(null);
     const mainContentRef = useRef<HTMLElement>(null);
     
     useEffect(() => {
@@ -73,7 +94,6 @@ const App: React.FC = () => {
         });
     }, [publicRooms]);
 
-
     useEffect(() => {
         // Mock public rooms data
         setPublicRooms([
@@ -102,6 +122,69 @@ const App: React.FC = () => {
         ]);
     }, []);
 
+    const addNotification = useCallback((message: string, type: Notification['type'] = 'info') => {
+        const newNotification: Notification = {
+            id: `notif-${Date.now()}-${Math.random()}`,
+            message,
+            type,
+            timestamp: Date.now(),
+            read: false,
+        };
+        setNotifications(prev => [newNotification, ...prev].slice(0, 50)); // Keep history to 50
+    }, []);
+
+    const joinRoom = useCallback((roomId: string) => {
+        if (!currentUser) return;
+        const code = roomId.toUpperCase();
+
+        const existingRoom = rooms.find(r => r.id === code);
+        if (existingRoom) {
+            if (existingRoom.status === 'minimized') {
+                 updateRoomState(code, 'status', 'open');
+            }
+            bringToFront(code);
+            return;
+        }
+
+        const roomToJoin = publicRooms.find(r => r.id === code);
+
+        if (roomToJoin) {
+            const usersWithCurrentUser = roomToJoin.users.some(u => u.id === currentUser.id)
+                ? roomToJoin.users
+                : [...roomToJoin.users, currentUser];
+            
+            setPublicRooms(prev => prev.map(r => r.id === code ? { ...r, users: usersWithCurrentUser } : r));
+            
+            const newRoomInstance = {
+                ...roomToJoin,
+                position: positionNewRoom(),
+                status: 'open' as const,
+                users: usersWithCurrentUser,
+                zIndex: nextZIndex,
+            };
+
+            setRooms(prev => [...prev, newRoomInstance]);
+            setNextZIndex(prev => prev + 1);
+        } else {
+            addNotification('Invalid room code. The room may have been shut down or the code is incorrect.', 'error');
+        }
+    }, [rooms, publicRooms, nextZIndex, currentUser, addNotification]);
+
+    // Effect to handle joining a room from a URL hash link
+    useEffect(() => {
+        if (!currentUser) return; // Only run if user is logged in
+
+        const hash = window.location.hash;
+        if (hash.startsWith('#join=')) {
+            const roomCode = hash.substring(6);
+            if (roomCode) {
+                joinRoom(roomCode);
+                // Clear the hash to prevent re-joining on re-renders
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+        }
+    }, [currentUser, joinRoom]);
+
     const handleLogin = (name: string, password: string): string | null => {
         const user = allUsers.find(u => u.name.toLowerCase() === name.trim().toLowerCase());
         if (!user) {
@@ -129,6 +212,8 @@ const App: React.FC = () => {
             favoriteGenres: [],
             bio: '',
             status: '',
+            friendIds: [],
+            incomingFriendRequests: [],
         };
         setAllUsers(prev => [...prev, newUser]);
         const { password: _, ...userWithoutPassword } = newUser;
@@ -140,25 +225,21 @@ const App: React.FC = () => {
         setCurrentUser(null);
         setRooms([]);
         setCurrentPage('home');
+        setViewingProfileId(null);
     };
 
     const handleUpdateProfile = (details: Partial<User>) => {
         if (!currentUser) return;
         
         if (details.name && details.name.toLowerCase() !== currentUser.name.toLowerCase() && allUsers.some(u => u.name.toLowerCase() === details.name!.toLowerCase())) {
-            alert('Username is already taken!');
+            addNotification('Username is already taken!', 'error');
             return;
         }
 
         const updatedUser = { ...currentUser, ...details };
         setCurrentUser(updatedUser);
         
-        setAllUsers(prevUsers => prevUsers.map(u => {
-            if (u.id === currentUser.id) {
-                return { ...u, ...details };
-            }
-            return u;
-        }));
+        setAllUsers(prevUsers => prevUsers.map(u => u.id === currentUser.id ? { ...u, ...details } : u));
         
         const updateUserInRoom = (u: User) => u.id === currentUser.id ? updatedUser : u;
         const updateUserInMessage = (msg: Message) => msg.user.id === currentUser.id ? { ...msg, user: updatedUser } : msg;
@@ -173,8 +254,73 @@ const App: React.FC = () => {
 
         setPublicRooms(prev => prev.map(roomUpdater));
 
-        alert('Profile updated!');
+        addNotification('Profile updated!', 'success');
+        setViewingProfileId(null);
         setCurrentPage('home');
+    };
+
+    // --- Social Features ---
+    const handleSendFriendRequest = (targetUserId: string) => {
+        if (!currentUser) return;
+        setAllUsers(prev => prev.map(u => {
+            if (u.id === targetUserId) {
+                const newRequests = [...(u.incomingFriendRequests || []), currentUser.id];
+                return { ...u, incomingFriendRequests: Array.from(new Set(newRequests)) };
+            }
+            return u;
+        }));
+        addNotification('Friend request sent!', 'success');
+    };
+
+    const handleAcceptFriendRequest = (requestingUserId: string) => {
+        if (!currentUser) return;
+
+        setAllUsers(prev => prev.map(u => {
+            // Add friend to current user's list and remove request
+            if (u.id === currentUser.id) {
+                const newFriends = [...(u.friendIds || []), requestingUserId];
+                const newRequests = (u.incomingFriendRequests || []).filter(id => id !== requestingUserId);
+                const updatedUser = { ...u, friendIds: Array.from(new Set(newFriends)), incomingFriendRequests: newRequests };
+                setCurrentUser(updatedUser);
+                return updatedUser;
+            }
+            // Add current user to the other user's friend list
+            if (u.id === requestingUserId) {
+                const newFriends = [...(u.friendIds || []), currentUser.id];
+                return { ...u, friendIds: Array.from(new Set(newFriends)) };
+            }
+            return u;
+        }));
+        addNotification('Friend request accepted!', 'success');
+    };
+
+    const handleRejectFriendRequest = (requestingUserId: string) => {
+        if (!currentUser) return;
+        const updatedUser = {
+            ...currentUser,
+            incomingFriendRequests: (currentUser.incomingFriendRequests || []).filter(id => id !== requestingUserId),
+        };
+        setCurrentUser(updatedUser);
+        setAllUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+        addNotification('Friend request rejected.', 'info');
+    };
+
+    const handleRemoveFriend = (friendId: string) => {
+        if (!currentUser) return;
+        setAllUsers(prev => prev.map(u => {
+            if (u.id === currentUser.id) {
+                const newFriends = (u.friendIds || []).filter(id => id !== friendId);
+                const updatedUser = { ...u, friendIds: newFriends };
+                setCurrentUser(updatedUser);
+                return updatedUser;
+            }
+            if (u.id === friendId) {
+                const newFriends = (u.friendIds || []).filter(id => id !== currentUser.id);
+                return { ...u, friendIds: newFriends };
+            }
+            return u;
+        }));
+        addNotification('Friend removed.', 'info');
     };
 
 
@@ -236,44 +382,6 @@ const App: React.FC = () => {
         setNextZIndex(prev => prev + 1);
     }, [nextZIndex, currentUser]);
 
-    const joinRoom = useCallback((roomId: string) => {
-        if (!currentUser) return;
-        const code = roomId.toUpperCase();
-
-        const existingRoom = rooms.find(r => r.id === code);
-        if (existingRoom) {
-            if (existingRoom.status === 'minimized') {
-                 updateRoomState(code, 'status', 'open');
-            }
-            bringToFront(code);
-            return;
-        }
-
-        const roomToJoin = publicRooms.find(r => r.id === code);
-
-        if (roomToJoin) {
-            const usersWithCurrentUser = roomToJoin.users.some(u => u.id === currentUser.id)
-                ? roomToJoin.users
-                : [...roomToJoin.users, currentUser];
-            
-            // Update publicRooms to include the new user
-            setPublicRooms(prev => prev.map(r => r.id === code ? { ...r, users: usersWithCurrentUser } : r));
-            
-            const newRoomInstance = {
-                ...roomToJoin,
-                position: positionNewRoom(),
-                status: 'open' as const,
-                users: usersWithCurrentUser,
-                zIndex: nextZIndex,
-            };
-
-            setRooms(prev => [...prev, newRoomInstance]);
-            setNextZIndex(prev => prev + 1);
-        } else {
-            alert("Invalid room code. The room may have been shut down or the code is incorrect.");
-        }
-    }, [rooms, publicRooms, nextZIndex, currentUser]);
-
     const toggleLikeRoom = (roomId: string) => {
         setLikedRoomIds(prev => {
             const newSet = new Set(prev);
@@ -325,6 +433,18 @@ const App: React.FC = () => {
         }));
     };
 
+    const handleReorderLinks = (roomId: string, sourceIndex: number, destinationIndex: number) => {
+        setPublicRooms(prev => prev.map(room => {
+            if (room.id !== roomId) {
+                return room;
+            }
+            const links = Array.from(room.musicLinks);
+            const [removed] = links.splice(sourceIndex, 1);
+            links.splice(destinationIndex, 0, removed);
+            return { ...room, musicLinks: links };
+        }));
+    };
+
     const handleAdminAction = (roomId: string, action: 'kick' | 'promote' | 'demote', targetUser: User) => {
         if (!currentUser) return;
         const roomNameForAlert = rooms.find(r => r.id === roomId)?.name ?? publicRooms.find(r => r.id === roomId)?.name;
@@ -371,7 +491,7 @@ const App: React.FC = () => {
             if (action === 'kick' && targetUser.id === currentUser.id) {
                 setTimeout(() => {
                     closeRoom(roomId);
-                    alert(`You have been kicked from "${roomNameForAlert || 'the room'}".`);
+                    addNotification(`You have been kicked from "${roomNameForAlert || 'the room'}".`, 'error');
                 }, 100);
             }
 
@@ -415,8 +535,32 @@ const App: React.FC = () => {
         if (roomToShutdown && roomToShutdown.creatorId === currentUser?.id) {
             setPublicRooms(prev => prev.filter(r => r.id !== roomId));
             // The useEffect hook will automatically remove it from `rooms`.
-            alert(`Room "${roomToShutdown.name}" [${roomToShutdown.id}] has been shut down.`);
+            addNotification(`Room "${roomToShutdown.name}" has been shut down.`, 'success');
         }
+    };
+
+    const handleShareRequest = (room: Room) => {
+        setSharingRoom(room);
+    };
+    
+    const handleViewProfile = (userId: string) => {
+        setViewingProfileId(userId);
+        setCurrentPage('profile');
+    };
+
+    const handleToggleNotificationPanel = () => {
+        setNotificationPanelOpen(prev => {
+            const isOpen = !prev;
+            if (isOpen) {
+                // Mark all as read when opening
+                setNotifications(n => n.map(notif => ({...notif, read: true})));
+            }
+            return isOpen;
+        });
+    };
+
+    const handleClearNotifications = () => {
+        setNotifications([]);
     };
 
     const openRooms = rooms.filter(r => r.status === 'open');
@@ -435,6 +579,8 @@ const App: React.FC = () => {
     if (!currentUser) {
         return <Auth onLogin={handleLogin} onSignup={handleSignup} />;
     }
+    
+    const viewingUser = viewingProfileId ? allUsers.find(u => u.id === viewingProfileId) : currentUser;
 
     const renderPage = () => {
         switch (currentPage) {
@@ -442,8 +588,24 @@ const App: React.FC = () => {
                 return <Home publicRooms={filteredPublicRooms} createRoom={createRoom} joinRoom={joinRoom} likedRoomIds={likedRoomIds} onLikeToggle={toggleLikeRoom} searchQuery={searchQuery} />;
             case 'liked':
                 return <LikedRooms likedRooms={likedRooms} joinRoom={joinRoom} onLikeToggle={toggleLikeRoom} />;
+            case 'friends':
+                return <Friends currentUser={currentUser} allUsers={allUsers} onAccept={handleAcceptFriendRequest} onReject={handleRejectFriendRequest} onRemove={handleRemoveFriend} onViewProfile={handleViewProfile} />;
             case 'profile':
-                return <Profile user={currentUser} publicRooms={publicRooms} onUpdateProfile={handleUpdateProfile} onBack={() => setCurrentPage('home')} />;
+                if (!viewingUser) {
+                    addNotification('Could not find user profile.', 'error');
+                    setCurrentPage('home');
+                    setViewingProfileId(null);
+                    return null;
+                }
+                return <Profile 
+                    user={viewingUser}
+                    currentUser={currentUser}
+                    publicRooms={publicRooms} 
+                    onUpdateProfile={handleUpdateProfile} 
+                    onBack={() => { setCurrentPage('home'); setViewingProfileId(null); }} 
+                    onSendFriendRequest={handleSendFriendRequest}
+                    onRemoveFriend={handleRemoveFriend}
+                />;
             default:
                 return null;
         }
@@ -456,9 +618,23 @@ const App: React.FC = () => {
                 onLogout={handleLogout} 
                 currentPage={currentPage} 
                 setCurrentPage={setCurrentPage}
+                setViewingProfileId={setViewingProfileId}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
+                notifications={notifications}
+                onToggleNotificationPanel={handleToggleNotificationPanel}
             />
+            
+            <NotificationContainer notifications={notifications} />
+            
+            {isNotificationPanelOpen && (
+                <NotificationPanel 
+                    notifications={notifications} 
+                    onClose={() => setNotificationPanelOpen(false)} 
+                    onClearAll={handleClearNotifications}
+                />
+            )}
+
             <main ref={mainContentRef} className="relative flex-1">
                 <div className="absolute inset-0 overflow-y-auto">
                     {renderPage()}
@@ -480,6 +656,10 @@ const App: React.FC = () => {
                             onAddMessage={handleAddMessage}
                             onAddLink={handleAddLink}
                             onLikeTrack={handleLikeTrack}
+                            onReorderLinks={handleReorderLinks}
+                            onConfirmRequest={setConfirmation}
+                            onShareRequest={handleShareRequest}
+                            onViewProfile={handleViewProfile}
                         />
                     ))}
 
@@ -498,10 +678,26 @@ const App: React.FC = () => {
                 </div>
             </main>
             <footer className="w-full p-1 text-xs text-center text-gray-500 bg-black border-t border-[#00FF41]/20">
-                <span>Version 1.1</span>
+                <span>Version 1.2</span>
                 <span className="mx-2">|</span>
                 <span>By using Jam Rooms, you accept our Terms and Conditions.</span>
             </footer>
+            {sharingRoom && (
+                <ShareRoomModal
+                    room={sharingRoom}
+                    onClose={() => setSharingRoom(null)}
+                />
+            )}
+            {confirmation && (
+                <ConfirmationModal
+                    {...confirmation}
+                    onClose={() => setConfirmation(null)}
+                    onConfirm={() => {
+                        confirmation.onConfirm();
+                        setConfirmation(null);
+                    }}
+                />
+            )}
         </div>
     );
 };
