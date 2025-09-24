@@ -25,10 +25,10 @@ const NavButton: React.FC<{
 }> = ({ icon, label, isActive, onClick, className = '', children }) => (
     <button
         onClick={onClick}
-        className={`relative flex items-center gap-2 px-4 py-2 text-lg border-b-2 transition-colors duration-200 ${
+        className={`relative flex items-center gap-2 px-4 py-2 text-lg rounded-md transition-colors duration-200 ${
             isActive
-                ? 'border-[#00FF41] matrix-text'
-                : 'border-transparent hover:border-[#00FF41]/50 hover:text-white'
+                ? 'bg-[var(--color-accent-transparent)] matrix-text'
+                : 'text-gray-300 hover:bg-white/5 hover:text-white'
         } ${className}`}
     >
         {icon}
@@ -50,15 +50,15 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, currentPage, setCurrent
     const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
     return (
-        <nav className="w-full p-2 flex justify-between items-center matrix-bg matrix-border border-b-2">
-            <div className="flex items-center">
-                <h1 className="text-3xl matrix-text pr-6">// JAM_ROOMS</h1>
-                <div className="flex items-center">
+        <nav className="w-full p-2 flex justify-between items-center matrix-bg rounded-none border-b border-[var(--color-border)]">
+            <div className="flex items-center gap-4">
+                <h1 className="text-3xl matrix-text pr-4">// JAM_ROOMS</h1>
+                <div className="flex items-center gap-2">
                     <NavButton icon={<GlobeAltIcon/>} label="Home" isActive={currentPage === 'home'} onClick={() => { setCurrentPage('home'); setViewingProfileId(null); }} />
-                    <NavButton icon={<HeartIcon/>} label="Liked Rooms" isActive={currentPage === 'liked'} onClick={() => { setCurrentPage('liked'); setViewingProfileId(null); }} />
+                    <NavButton icon={<HeartIcon/>} label="Liked" isActive={currentPage === 'liked'} onClick={() => { setCurrentPage('liked'); setViewingProfileId(null); }} />
                     <NavButton icon={<UserIcon/>} label="Friends" isActive={currentPage === 'friends'} onClick={() => { setCurrentPage('friends'); setViewingProfileId(null); }}>
                         {pendingRequestsCount > 0 && (
-                            <span className="absolute top-0 right-0 -mt-1 -mr-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-danger)] text-xs text-white">
                                 {pendingRequestsCount}
                             </span>
                         )}
@@ -72,9 +72,9 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, currentPage, setCurrent
                         placeholder="Search rooms..."
                         value={searchQuery}
                         onChange={handleSearchChange}
-                        className="px-2 py-1 pl-8 matrix-input w-48 transition-all duration-300 focus:w-64"
+                        className="px-3 py-2 pl-10 matrix-input w-56 transition-all duration-300 focus:w-72"
                     />
-                    <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[#00FF41]">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                         <SearchIcon />
                     </div>
                  </div>
@@ -83,17 +83,16 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, currentPage, setCurrent
                     label={user.name} 
                     isActive={currentPage === 'profile'} 
                     onClick={() => { setCurrentPage('profile'); setViewingProfileId(null); }}
-                    className="border-none"
                  />
-                <button onClick={onToggleNotificationPanel} title="Notifications" className="relative flex items-center gap-2 p-2 matrix-button">
+                <button onClick={onToggleNotificationPanel} title="Notifications" className="relative p-2 text-gray-300 rounded-md hover:bg-white/5 hover:text-white transition-colors">
                     <BellIcon/>
                     {unreadNotificationsCount > 0 && (
-                        <span className="absolute top-0 right-0 -mt-2 -mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-danger)] text-xs text-white">
                             {unreadNotificationsCount}
                         </span>
                     )}
                 </button>
-                <button onClick={onLogout} title="Logout" className="flex items-center gap-2 p-2 matrix-button">
+                <button onClick={onLogout} title="Logout" className="p-2 text-gray-300 rounded-md hover:bg-white/5 hover:text-white transition-colors">
                     <LogoutIcon/>
                 </button>
             </div>

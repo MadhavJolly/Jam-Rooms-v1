@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Room } from '../types';
 import { GlobeAltIcon, MusicNoteIcon, UserIcon, HeartSolidIcon } from './icons';
@@ -10,28 +11,28 @@ interface LikedRoomsProps {
 
 const LikedRooms: React.FC<LikedRoomsProps> = ({ likedRooms, joinRoom, onLikeToggle }) => {
     return (
-        <div className="w-full min-h-full p-8">
-            <main className="max-w-5xl mx-auto">
-                <h1 className="text-5xl mb-6 matrix-text animate-pulse">{'// LIKED ROOMS'}</h1>
+        <div className="w-full min-h-full p-8 md:p-12">
+            <main className="max-w-7xl mx-auto">
+                <h1 className="text-6xl mb-10 matrix-text">{'// LIKED ROOMS'}</h1>
                 {likedRooms.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {likedRooms.map(room => (
-                            <div key={room.id} className="relative flex flex-col p-4 matrix-bg matrix-border group hover:bg-[#001c05] transition-all duration-200">
-                                <div className="absolute top-2 right-2">
-                                     <button onClick={() => onLikeToggle(room.id)} className="p-1 text-[#00FF41] hover:scale-125 transition-transform">
+                            <div key={room.id} className="relative flex flex-col p-6 matrix-bg matrix-border hover:border-[var(--color-accent)] transition-all duration-200">
+                                <div className="absolute top-3 right-3 z-10">
+                                     <button onClick={() => onLikeToggle(room.id)} className="p-1 text-[#A78BFA] hover:scale-125 transition-transform">
                                         <HeartSolidIcon />
                                     </button>
                                 </div>
-                                <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center gap-2 mb-3">
                                     <GlobeAltIcon />
-                                    <h3 className="text-2xl matrix-text truncate">{room.name}</h3>
+                                    <h3 className="text-3xl matrix-text truncate">{room.name}</h3>
                                 </div>
-                                <div className="flex-grow space-y-2 text-lg mb-4">
+                                <div className="flex-grow space-y-2 text-xl mb-6">
                                     <p className="flex items-center gap-2"><UserIcon /> {room.userCount} Users</p>
                                     <p className="flex items-center gap-2"><MusicNoteIcon /> {room.songCount} Jams</p>
                                 </div>
-                                <button onClick={() => joinRoom(room.id)} className="w-full p-2 matrix-button text-lg">
-                                    JOIN ROOM
+                                <button onClick={() => joinRoom(room.id)} className="w-full matrix-button matrix-button-primary">
+                                    Join Room
                                 </button>
                             </div>
                         ))}

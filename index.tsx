@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -36,10 +37,10 @@ if (canvas && ctx) {
     }
 
     const draw = () => {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Very fast fade for a much subtler effect
+        ctx.fillStyle = 'rgba(18, 18, 18, 0.05)'; // Slower fade for a more layered effect
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = 'rgba(0, 143, 17, 0.5)'; // Dark, semi-transparent green
+        ctx.fillStyle = 'rgba(167, 139, 250, 0.4)'; // Accent color, subtle
         ctx.font = `${fontSize}px monospace`;
 
         for (let i = 0; i < rainDrops.length; i++) {
@@ -53,7 +54,7 @@ if (canvas && ctx) {
         }
     };
 
-    let interval = setInterval(draw, 100); // Much slower interval for less density
+    let interval = setInterval(draw, 100);
     window.addEventListener('resize', () => {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;

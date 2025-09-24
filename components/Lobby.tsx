@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Room } from '../types';
 import CreateRoomModal from './CreateRoomModal';
@@ -33,56 +34,56 @@ const Home: React.FC<HomeProps> = ({ publicRooms, createRoom, joinRoom, likedRoo
 
     return (
         <>
-            <div className="w-full min-h-full p-8">
-                <header className="max-w-5xl mx-auto flex justify-between items-center mb-8">
+            <div className="w-full min-h-full p-8 md:p-12">
+                <header className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
                     <div>
-                        <h1 className="text-6xl matrix-text animate-pulse">JAM ROOMS</h1>
-                        <p className="text-xl">The decentralized hub for sharing and discovering music.</p>
+                        <h1 className="text-7xl matrix-text">JAM ROOMS</h1>
+                        <p className="text-2xl text-gray-300">The decentralized hub for sharing and discovering music.</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setCreateModalOpen(true)} className="px-6 py-3 text-2xl matrix-button flex-shrink-0">
-                            {'>> CREATE ROOM <<'}
+                        <button onClick={() => setCreateModalOpen(true)} className="matrix-button matrix-button-secondary">
+                            Create Room
                         </button>
-                         <button onClick={() => setJoinModalState({ isOpen: true })} className="px-6 py-3 text-2xl matrix-button flex-shrink-0">
-                            {'>> JOIN WITH CODE <<'}
+                         <button onClick={() => setJoinModalState({ isOpen: true })} className="matrix-button matrix-button-secondary">
+                            Join With Code
                         </button>
                     </div>
                 </header>
                 
-                <hr className="border-[#00FF41]/20 max-w-5xl mx-auto my-8"/>
+                <hr className="border-white/10 max-w-7xl mx-auto my-12"/>
 
-                <main className="max-w-5xl mx-auto">
+                <main className="max-w-7xl mx-auto">
                     {searchQuery ? (
-                         <h2 className="text-3xl mb-4 matrix-text">{`>> SEARCH RESULTS FOR "${searchQuery}"`}</h2>
+                         <h2 className="text-4xl mb-6 matrix-text">{`// SEARCH RESULTS FOR "${searchQuery}"`}</h2>
                     ) : (
-                         <h2 className="text-3xl mb-4 matrix-text">{'>>'} PUBLIC LOBBIES</h2>
+                         <h2 className="text-4xl mb-6 matrix-text">{'//'} PUBLIC LOBBIES</h2>
                     )}
                     
                     {publicRooms.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {publicRooms.map(room => (
-                                <div key={room.id} className="relative flex flex-col p-4 matrix-bg matrix-border hover:bg-[#001c05] transition-all duration-200">
-                                    <div className="absolute top-2 right-2 z-10">
-                                        <button onClick={() => onLikeToggle(room.id)} className="p-1 text-[#00FF41] hover:scale-125 transition-transform">
+                                <div key={room.id} className="relative flex flex-col p-6 matrix-bg matrix-border hover:border-[var(--color-accent)] transition-all duration-200">
+                                    <div className="absolute top-3 right-3 z-10">
+                                        <button onClick={() => onLikeToggle(room.id)} className="p-1 text-[#A78BFA] hover:scale-125 transition-transform">
                                             {likedRoomIds.has(room.id) ? <HeartSolidIcon /> : <HeartIcon />}
                                         </button>
                                     </div>
-                                    <div className="flex items-center gap-2 mb-2">
+                                    <div className="flex items-center gap-2 mb-3">
                                         {room.isPrivate ? <LockClosedIcon /> : <GlobeAltIcon />}
-                                        <h3 className="text-2xl matrix-text truncate">{room.name}</h3>
+                                        <h3 className="text-3xl matrix-text truncate">{room.name}</h3>
                                     </div>
-                                    <div className="flex flex-wrap gap-1 mb-3">
-                                        {room.tags.slice(0, 3).map(tag => <span key={tag} className="text-xs bg-[#002200] px-2 py-0.5 border border-[#00FF41]/50">{tag}</span>)}
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {room.tags.slice(0, 3).map(tag => <span key={tag} className="text-xs bg-black/30 px-2 py-1 border border-white/10 rounded-full">{tag}</span>)}
                                     </div>
-                                    <p className="text-sm text-gray-400 mb-3 h-12 overflow-hidden">
+                                    <p className="text-base text-gray-400 mb-4 h-12 overflow-hidden">
                                         {room.description}
                                     </p>
-                                    <div className="flex-grow space-y-2 text-lg mb-4">
+                                    <div className="flex-grow space-y-2 text-xl mb-6">
                                         <p className="flex items-center gap-2"><UserIcon /> {room.userCount || room.users.length} Users</p>
                                         <p className="flex items-center gap-2"><MusicNoteIcon /> {room.songCount || room.musicLinks.length} Jams</p>
                                     </div>
-                                    <button onClick={() => handleJoinClick(room)} className="w-full p-2 matrix-button text-lg z-0">
-                                        JOIN ROOM
+                                    <button onClick={() => handleJoinClick(room)} className="w-full matrix-button matrix-button-primary">
+                                        Join Room
                                     </button>
                                 </div>
                             ))}

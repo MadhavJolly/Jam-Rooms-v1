@@ -11,7 +11,7 @@ const MinimizedRoomTab: React.FC<MinimizedRoomTabProps> = ({ room, onRestore }) 
     return (
         <button
             onClick={onRestore}
-            className="px-4 py-2 matrix-button matrix-text animate-pulse"
+            className="matrix-button matrix-button-secondary"
         >
             {`// RESTORE: ${room.name}`}
         </button>

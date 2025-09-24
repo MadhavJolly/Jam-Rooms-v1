@@ -28,18 +28,18 @@ const Toast: React.FC<ToastProps> = ({ notification, onDismiss }) => {
     }
     
     const typeClasses = {
-        success: 'border-green-500 bg-green-500/10 text-green-400',
-        error: 'border-red-500 bg-red-500/10 text-red-400',
-        info: 'border-sky-500 bg-sky-500/10 text-sky-400',
+        success: 'border-emerald-500 bg-emerald-900/50 text-emerald-300',
+        error: 'border-rose-500 bg-rose-900/50 text-rose-300',
+        info: 'border-violet-500 bg-violet-900/50 text-violet-300',
     };
 
     return (
         <div 
-            className={`w-full max-w-sm p-3 matrix-bg matrix-border flex items-start justify-between gap-4 transition-all duration-300 ${typeClasses[notification.type]} ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}`}
+            className={`w-full max-w-sm p-4 matrix-bg matrix-border flex items-start justify-between gap-4 transition-all duration-300 ${typeClasses[notification.type]} ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}`}
             role="alert"
         >
-            <p className="text-sm">{notification.message}</p>
-            <button onClick={handleDismiss} className="p-1 -m-1 flex-shrink-0">
+            <p className="text-base">{notification.message}</p>
+            <button onClick={handleDismiss} className="p-1 -m-1 flex-shrink-0 text-gray-400 hover:text-white">
                 <CloseIcon />
             </button>
         </div>
@@ -73,7 +73,7 @@ const NotificationContainer: React.FC<NotificationContainerProps> = ({ notificat
     };
 
     return (
-        <div className="fixed top-20 right-4 z-[9999] w-full max-w-sm space-y-2">
+        <div className="fixed top-20 right-4 z-[9999] w-full max-w-sm space-y-3">
             {toasts.map(toast => (
                 <Toast key={toast.id} notification={toast} onDismiss={handleDismiss} />
             ))}

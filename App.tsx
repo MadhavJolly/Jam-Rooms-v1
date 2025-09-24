@@ -677,7 +677,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </main>
-            <footer className="w-full p-1 text-xs text-center text-gray-500 bg-black border-t border-[#00FF41]/20">
+            <footer className="w-full p-1 text-xs text-center text-gray-500 bg-[var(--color-background)] border-t border-[var(--color-border)]">
                 <span>Version 1.2</span>
                 <span className="mx-2">|</span>
                 <span>By using Jam Rooms, you accept our Terms and Conditions.</span>

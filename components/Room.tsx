@@ -34,6 +34,7 @@ const RoomComponent: React.FC<RoomProps> = ({
     const dragRef = useRef({ x: 0, y: 0 });
     const nodeRef = useRef<HTMLDivElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const [isFocused, setIsFocused] = useState(false);
     
     const draggedItemIndex = useRef<number | null>(null);
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
@@ -52,6 +53,7 @@ const RoomComponent: React.FC<RoomProps> = ({
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!nodeRef.current || (e.target as HTMLElement).closest('button, input, a, textarea, [draggable="true"]')) return;
         onFocus();
+        setIsFocused(true);
         setIsDragging(true);
         const { left, top } = nodeRef.current.getBoundingClientRect();
         dragRef.current = {
@@ -74,6 +76,18 @@ const RoomComponent: React.FC<RoomProps> = ({
     const handleMouseUp = useCallback(() => {
         setIsDragging(false);
     }, []);
+    
+    const handleFocus = () => {
+        onFocus();
+        setIsFocused(true);
+    };
+
+    const handleBlur = (e: React.FocusEvent) => {
+        if (!nodeRef.current?.contains(e.relatedTarget as Node)) {
+            setIsFocused(false);
+        }
+    };
+
 
     useEffect(() => {
         if (isDragging) {
@@ -216,239 +230,246 @@ const RoomComponent: React.FC<RoomProps> = ({
     };
 
     return (
-        <>
-            <div
-                ref={nodeRef}
-                className="absolute flex flex-col w-full h-[85vh] max-w-6xl matrix-bg matrix-border pointer-events-auto"
-                style={{ top: room.position.y, left: room.position.x, zIndex: room.zIndex }}
-                onMouseDown={onFocus}
-            >
-                <header className="flex items-center justify-between p-1 bg-black cursor-move" onMouseDown={handleMouseDown}>
-                    <h2 className="text-lg matrix-text select-none pl-2">{`// ROOM: ${room.name} [${room.id}]`}</h2>
-                    <div className="flex items-center">
-                        <button onClick={() => onShareRequest(room)} className="p-1 hover:bg-[#00FF41] hover:text-black"><ShareIcon /></button>
-                        {isAdmin && (
-                            <button onClick={() => setShowSettings(!showSettings)} className={`p-1 hover:bg-[#00FF41] hover:text-black ${showSettings ? 'bg-[#00FF41] text-black' : ''}`}><CogIcon /></button>
-                        )}
-                        <button onClick={onMinimize} className="p-1 hover:bg-[#00FF41] hover:text-black"><MinimizeIcon /></button>
-                        <button onClick={onClose} className="p-1 hover:bg-[#00FF41] hover:text-red-600"><CloseIcon /></button>
-                    </div>
-                </header>
-                
-                <div className="flex-grow flex flex-row gap-px bg-[#00FF41] overflow-hidden">
-                    {/* Main Content Column */}
-                    <div className="bg-black flex flex-col w-3/4">
-                        {/* Shared Jams */}
-                        <div className="flex flex-col h-1/2">
-                            <div className="p-2 border-b border-[#00FF41]/50">
-                                <h3 className="matrix-text text-xl">SHARED JAMS ({room.musicLinks.length})</h3>
-                            </div>
-                            <div 
-                                className="flex-grow p-2 overflow-y-auto"
-                                onDragLeave={isAdmin ? handleContainerDragLeave : undefined}
-                            >
-                                {room.musicLinks.length === 0 && <p className="text-gray-500 text-center py-4">No jams shared yet. Drop a link in the chat!</p>}
-                                {room.musicLinks.map((link, index) => {
-                                    const canDelete = link.user.id === currentUser.id;
-                                    const canDrag = isAdmin;
+        <div
+            ref={nodeRef}
+            className={`absolute flex flex-col w-full h-[85vh] max-w-6xl matrix-bg matrix-border pointer-events-auto transition-all duration-200 shadow-2xl overflow-hidden`}
+            style={{ 
+                top: room.position.y, 
+                left: room.position.x, 
+                zIndex: room.zIndex,
+                borderColor: isFocused ? 'var(--color-accent)' : 'var(--color-border)',
+                boxShadow: isFocused ? `0 0 25px rgba(167, 139, 250, 0.3)`: 'none'
+            }}
+            onMouseDown={handleFocus}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            tabIndex={-1}
+        >
+            <header className="flex items-center justify-between p-1 bg-black/50 cursor-move" onMouseDown={handleMouseDown}>
+                <h2 className="text-lg matrix-text select-none pl-2">{`// ROOM: ${room.name} [${room.id}]`}</h2>
+                <div className="flex items-center">
+                    <button onClick={() => onShareRequest(room)} className="p-1.5 hover:bg-violet-500/20 rounded-sm"><ShareIcon /></button>
+                    {isAdmin && (
+                        <button onClick={() => setShowSettings(!showSettings)} className={`p-1.5 hover:bg-violet-500/20 rounded-sm ${showSettings ? 'bg-violet-500/20 text-white' : ''}`}><CogIcon /></button>
+                    )}
+                    <button onClick={onMinimize} className="p-1.5 hover:bg-violet-500/20 rounded-sm"><MinimizeIcon /></button>
+                    <button onClick={onClose} className="p-1.5 hover:bg-rose-500/20 rounded-sm"><CloseIcon /></button>
+                </div>
+            </header>
+            
+            <div className="flex-grow flex flex-row gap-px bg-white/5 overflow-hidden">
+                {/* Main Content Column */}
+                <div className="bg-transparent flex flex-col w-3/4">
+                    {/* Shared Jams */}
+                    <div className="flex flex-col h-1/2">
+                        <div className="p-3 border-b border-white/10">
+                            <h3 className="matrix-text text-2xl">SHARED JAMS ({room.musicLinks.length})</h3>
+                        </div>
+                        <div 
+                            className="flex-grow p-2 overflow-y-auto"
+                            onDragLeave={isAdmin ? handleContainerDragLeave : undefined}
+                        >
+                            {room.musicLinks.length === 0 && <p className="text-gray-500 text-center py-4">No jams shared yet. Drop a link in the chat!</p>}
+                            {room.musicLinks.map((link, index) => {
+                                const canDelete = link.user.id === currentUser.id;
+                                const canDrag = isAdmin;
 
-                                    return (
-                                        <div 
-                                            key={link.id}
-                                            className={`p-2 border-b border-transparent border-b-[#00FF41]/20 flex items-center gap-3 transition-all duration-150 ${
-                                                canDrag ? 'hover:bg-[#002200]' : ''
-                                            } ${
-                                                draggingIndex === index ? 'opacity-30' : ''
-                                            } ${
-                                                dragOverIndex === index ? 'border-[#00FF41]' : ''
-                                            }`}
-                                            onDragOver={canDrag ? (e) => handleDragOver(e, index) : undefined}
-                                            onDrop={canDrag ? (e) => handleDrop(e, index) : undefined}
+                                return (
+                                    <div 
+                                        key={link.id}
+                                        className={`p-2 border-b border-transparent border-b-white/5 flex items-center gap-3 transition-all duration-150 rounded-md ${
+                                            canDrag ? 'hover:bg-white/5' : ''
+                                        } ${
+                                            draggingIndex === index ? 'opacity-30' : ''
+                                        } ${
+                                            dragOverIndex === index ? 'border-violet-500' : ''
+                                        }`}
+                                        onDragOver={canDrag ? (e) => handleDragOver(e, index) : undefined}
+                                        onDrop={canDrag ? (e) => handleDrop(e, index) : undefined}
+                                    >
+                                        <div
+                                            className={`p-1 ${canDrag ? 'cursor-move text-gray-400 hover:text-white' : 'cursor-not-allowed text-gray-800'}`}
+                                            draggable={canDrag}
+                                            onDragStart={canDrag ? (e) => handleDragStart(e, index) : undefined}
+                                            onDragEnd={canDrag ? handleDragEnd : undefined}
+                                            title={canDrag ? "Drag to reorder" : "Admin only: Drag to reorder"}
                                         >
-                                            <div
-                                                className={`p-1 ${canDrag ? 'cursor-move text-gray-400 hover:text-white' : 'cursor-not-allowed text-gray-800'}`}
-                                                draggable={canDrag}
-                                                onDragStart={canDrag ? (e) => handleDragStart(e, index) : undefined}
-                                                onDragEnd={canDrag ? handleDragEnd : undefined}
-                                                title={canDrag ? "Drag to reorder" : "Admin only: Drag to reorder"}
+                                            <GripVerticalIcon />
+                                        </div>
+                                        <div className="w-16 h-10 flex-shrink-0 bg-black flex items-center justify-center rounded-md overflow-hidden">
+                                            {link.thumbnail ? <img src={link.thumbnail} alt={link.title} className="w-full h-full object-cover" /> : <MusicNoteIcon />}
+                                        </div>
+                                        <div className="flex-grow overflow-hidden min-w-0">
+                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="font-bold truncate hover:underline block text-lg">{link.title}</a>
+                                            <p className="text-xs text-gray-400">by {link.user.name} on {link.platform}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => onLikeTrack(room.id, link.id)} className="flex items-center gap-1 text-base p-1 text-gray-300 hover:text-white">
+                                                {link.likes.includes(currentUser.id) ? <HeartSolidIcon /> : <HeartIcon />}
+                                                <span>{link.likes.length}</span>
+                                            </button>
+                                            <button 
+                                                onClick={canDelete ? () => onConfirmRequest({
+                                                    title: 'DELETE LINK',
+                                                    message: <p>Are you sure you want to permanently delete the link for <span className="font-bold">"{link.title}"</span>?</p>,
+                                                    onConfirm: () => onRemoveLink(room.id, link.id, currentUser),
+                                                    confirmText: 'DELETE',
+                                                    confirmClass: 'matrix-button-danger'
+                                                }) : undefined}
+                                                disabled={!canDelete}
+                                                className={`p-1 transition-colors ${canDelete ? 'text-gray-500 hover:text-rose-500' : 'text-gray-800 cursor-not-allowed'}`}
+                                                title={canDelete ? "Delete link" : "Only the user who shared this can delete it"}
                                             >
-                                                <GripVerticalIcon />
-                                            </div>
-                                            <div className="w-16 h-10 flex-shrink-0 bg-black flex items-center justify-center">
-                                                {link.thumbnail ? <img src={link.thumbnail} alt={link.title} className="w-full h-full object-cover" /> : <MusicNoteIcon />}
-                                            </div>
-                                            <div className="flex-grow overflow-hidden min-w-0">
-                                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="font-bold truncate hover:underline block">{link.title}</a>
-                                                <p className="text-xs text-gray-400">by {link.user.name} on {link.platform}</p>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <button onClick={() => onLikeTrack(room.id, link.id)} className="flex items-center gap-1 text-xs p-1 hover:text-white">
-                                                    {link.likes.includes(currentUser.id) ? <HeartSolidIcon /> : <HeartIcon />}
-                                                    <span>{link.likes.length}</span>
-                                                </button>
-                                                <button 
-                                                    onClick={canDelete ? () => onConfirmRequest({
-                                                        title: 'DELETE LINK',
-                                                        message: <p>Are you sure you want to permanently delete the link for <span className="font-bold">"{link.title}"</span>?</p>,
-                                                        onConfirm: () => onRemoveLink(room.id, link.id, currentUser),
-                                                        confirmText: 'DELETE',
-                                                        confirmClass: 'bg-red-800 hover:bg-red-600'
-                                                    }) : undefined}
-                                                    disabled={!canDelete}
-                                                    className={`p-1 transition-colors ${canDelete ? 'text-gray-500 hover:text-red-500' : 'text-gray-800 cursor-not-allowed'}`}
-                                                    title={canDelete ? "Delete link" : "Only the user who shared this can delete it"}
-                                                >
-                                                    <TrashIcon />
-                                                </button>
-                                            </div>
+                                                <TrashIcon />
+                                            </button>
                                         </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                        {/* Chat */}
-                        <div className="flex flex-col flex-grow border-t border-[#00FF41]">
-                            <div className="p-2 border-b border-[#00FF41]/50">
-                                <h3 className="matrix-text text-xl">CHAT</h3>
-                            </div>
-                            <div className="flex-grow p-2 overflow-y-auto">
-                                {room.messages.map(msg => (
-                                    msg.user.id === 'system' ? (
-                                        <div key={msg.id} className="my-2 text-sm text-center text-yellow-400/90 italic">
-                                            <span className="px-2 py-1 bg-yellow-400/10 rounded-md">
-                                                {msg.text}
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <div key={msg.id} className="mb-2 text-base leading-tight break-words">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-gray-500 text-xs flex-shrink-0">{formatTimestamp(msg.timestamp)}</span>
-                                                <button onClick={() => onViewProfile(msg.user.id)} className="font-bold hover:underline flex-shrink-0" style={{ color: msg.user.color || '#00FF41' }}>{msg.user.name}</button>
-                                                <span className="text-gray-400">:~$</span>
-                                                <p className="inline">{msg.text}</p>
-                                            </div>
-                                        </div>
-                                    )
-                                ))}
-                                <div ref={chatEndRef} />
-                            </div>
-                            <div className="p-1 bg-black border-t border-[#00FF41]/50 mt-auto">
-                                <form className="flex items-stretch gap-2" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-                                    <input
-                                        type="text"
-                                        value={input}
-                                        onChange={(e) => setInput(e.target.value)}
-                                        placeholder="Send a message or drop a link..."
-                                        className="w-full p-2 matrix-input bg-transparent border-transparent focus:border-transparent focus:ring-0"
-                                    />
-                                    <button type="submit" className="p-2 matrix-button flex items-center justify-center">
-                                        <SendIcon />
-                                    </button>
-                                </form>
-                            </div>
+                                    </div>
+                                )
+                            })}
                         </div>
                     </div>
-
-                    {/* Side Panel: Users / Admin */}
-                    <div className="bg-black flex flex-col w-1/4 overflow-hidden">
-                        {showSettings && isAdmin ? (
-                            <div className="p-2 flex flex-col h-full">
-                                <div className="border-b border-[#00FF41]/50 pb-2 mb-2">
-                                    <h3 className="matrix-text text-xl">ADMIN CONTROLS</h3>
-                                </div>
-                                <div className="flex-grow overflow-y-auto pr-1">
-                                    <h4 className="text-lg matrix-text mt-2">USER MANAGEMENT</h4>
-                                    <ul className="space-y-2 mt-2">
-                                        {room.users.map(user => {
-                                            const isTargetAdmin = room.adminIds.includes(user.id);
-                                            const isCreator = room.creatorId === user.id;
-                                            return (
-                                                <li key={user.id} className="flex items-center justify-between p-1 hover:bg-[#002200]">
-                                                    <button onClick={() => onViewProfile(user.id)} className="hover:underline truncate">{user.name}</button>
-                                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                                        {!isCreator && user.id !== currentUser.id && (
-                                                            <>
-                                                                {isTargetAdmin ? (
-                                                                    <button onClick={() => onAdminAction(room.id, 'demote', user)} className="text-xs matrix-button px-2 py-0.5">DEMOTE</button>
-                                                                ) : (
-                                                                    <button onClick={() => onAdminAction(room.id, 'promote', user)} className="text-xs matrix-button px-2 py-0.5">PROMOTE</button>
-                                                                )}
-                                                                <button
-                                                                    onClick={() => onConfirmRequest({
-                                                                        title: 'KICK USER',
-                                                                        message: <p>Are you sure you want to kick <span className="font-bold">{user.name}</span> from the room?</p>,
-                                                                        onConfirm: () => onAdminAction(room.id, 'kick', user),
-                                                                        confirmText: 'KICK',
-                                                                        confirmClass: 'bg-red-800 hover:bg-red-600'
-                                                                    })}
-                                                                    className="text-xs matrix-button px-2 py-0.5 !bg-red-900/50 hover:!bg-red-700"
-                                                                >
-                                                                    KICK
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                                {room.isPrivate && (
-                                    <div className="pt-2">
-                                        <h4 className="text-lg matrix-text mt-4">ROOM CODE</h4>
-                                        <div className="flex gap-2 mt-1">
-                                            <input type="text" readOnly value={room.id} className="p-1 matrix-input flex-grow" />
-                                            <button onClick={handleCopyCode} className="px-2 py-1 matrix-button">{copyStatus}</button>
+                    {/* Chat */}
+                    <div className="flex flex-col flex-grow border-t border-white/10">
+                        <div className="p-3 border-b border-white/10">
+                            <h3 className="matrix-text text-2xl">CHAT</h3>
+                        </div>
+                        <div className="flex-grow p-3 overflow-y-auto">
+                            {room.messages.map(msg => (
+                                msg.user.id === 'system' ? (
+                                    <div key={msg.id} className="my-2 text-sm text-center text-yellow-400/90 italic">
+                                        <span className="px-2 py-1 bg-yellow-400/10 rounded-md">
+                                            {msg.text}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div key={msg.id} className="mb-2 text-base leading-tight break-words">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-gray-500 text-xs flex-shrink-0">{formatTimestamp(msg.timestamp)}</span>
+                                            <button onClick={() => onViewProfile(msg.user.id)} className="font-bold hover:underline flex-shrink-0" style={{ color: msg.user.color || 'var(--color-accent)' }}>{msg.user.name}</button>
+                                            <span className="text-gray-400">:~$</span>
+                                            <p className="inline">{msg.text}</p>
                                         </div>
                                     </div>
-                                )}
-                                {currentUser.id === room.creatorId && (
-                                    <div className="mt-auto pt-4">
-                                        <button
-                                            onClick={() => onConfirmRequest({
-                                                title: 'SHUTDOWN ROOM',
-                                                message: <p>Are you sure? This will permanently close the room for everyone.</p>,
-                                                onConfirm: onShutdown,
-                                                confirmText: 'SHUTDOWN',
-                                                confirmClass: 'bg-red-800 hover:bg-red-600'
-                                            })}
-                                            className="w-full p-2 matrix-button text-lg !bg-red-900/50 hover:!bg-red-700"
-                                        >
-                                            SHUTDOWN ROOM
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col h-full">
-                                <div className="p-2 border-b border-[#00FF41]/50">
-                                    <h3 className="matrix-text text-xl">USERS ({room.users.length})</h3>
-                                </div>
-                                <div className="flex-grow p-2 overflow-y-auto">
-                                    <ul className="space-y-1">
-                                        {room.users.map(user => (
-                                            <li key={user.id} className="flex flex-col items-start p-1 rounded hover:bg-[#001100]">
-                                                <div className="flex items-center gap-2 w-full">
-                                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: user.color }}></span>
-                                                    <button onClick={() => onViewProfile(user.id)} className="font-bold truncate hover:underline">{user.name}</button>
-                                                    <div className="ml-auto flex items-center gap-1 flex-shrink-0">
-                                                        {room.creatorId === user.id && <span title="Room Creator"><CrownIcon /></span>}
-                                                        {room.adminIds.includes(user.id) && room.creatorId !== user.id && (
-                                                            <span title="Room Admin"><StarIcon /></span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                {user.status && <p className="text-xs text-gray-400 pl-4 italic truncate w-full">"{user.status}"</p>}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        )}
+                                )
+                            ))}
+                            <div ref={chatEndRef} />
+                        </div>
+                        <div className="p-2 bg-black/50 border-t border-white/10 mt-auto">
+                            <form className="flex items-stretch gap-2" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Send a message or drop a link..."
+                                    className="w-full p-2 matrix-input bg-transparent border-transparent focus:border-transparent focus:ring-0"
+                                />
+                                <button type="submit" className="px-4 py-2 matrix-button matrix-button-primary flex items-center justify-center">
+                                    <SendIcon />
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
+
+                {/* Side Panel: Users / Admin */}
+                <div className="bg-transparent flex flex-col w-1/4 overflow-hidden">
+                    {showSettings && isAdmin ? (
+                        <div className="p-3 flex flex-col h-full">
+                            <div className="border-b border-white/10 pb-2 mb-2">
+                                <h3 className="matrix-text text-2xl">ADMIN CONTROLS</h3>
+                            </div>
+                            <div className="flex-grow overflow-y-auto pr-1">
+                                <h4 className="text-xl matrix-text mt-2">USER MANAGEMENT</h4>
+                                <ul className="space-y-2 mt-2">
+                                    {room.users.map(user => {
+                                        const isTargetAdmin = room.adminIds.includes(user.id);
+                                        const isCreator = room.creatorId === user.id;
+                                        return (
+                                            <li key={user.id} className="flex items-center justify-between p-1 hover:bg-white/5 rounded-md">
+                                                <button onClick={() => onViewProfile(user.id)} className="hover:underline truncate">{user.name}</button>
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    {!isCreator && user.id !== currentUser.id && (
+                                                        <>
+                                                            {isTargetAdmin ? (
+                                                                <button onClick={() => onAdminAction(room.id, 'demote', user)} className="text-xs matrix-button matrix-button-secondary py-1 px-2">DEMOTE</button>
+                                                            ) : (
+                                                                <button onClick={() => onAdminAction(room.id, 'promote', user)} className="text-xs matrix-button matrix-button-secondary py-1 px-2">PROMOTE</button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => onConfirmRequest({
+                                                                    title: 'KICK USER',
+                                                                    message: <p>Are you sure you want to kick <span className="font-bold">{user.name}</span> from the room?</p>,
+                                                                    onConfirm: () => onAdminAction(room.id, 'kick', user),
+                                                                    confirmText: 'KICK',
+                                                                    confirmClass: 'matrix-button-danger'
+                                                                })}
+                                                                className="text-xs matrix-button matrix-button-danger py-1 px-2"
+                                                            >
+                                                                KICK
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                            {room.isPrivate && (
+                                <div className="pt-2">
+                                    <h4 className="text-xl matrix-text mt-4">ROOM CODE</h4>
+                                    <div className="flex gap-2 mt-1">
+                                        <input type="text" readOnly value={room.id} className="p-1 matrix-input flex-grow" />
+                                        <button onClick={handleCopyCode} className="matrix-button matrix-button-secondary text-sm">{copyStatus}</button>
+                                    </div>
+                                </div>
+                            )}
+                            {currentUser.id === room.creatorId && (
+                                <div className="mt-auto pt-4">
+                                    <button
+                                        onClick={() => onConfirmRequest({
+                                            title: 'SHUTDOWN ROOM',
+                                            message: <p>Are you sure? This will permanently close the room for everyone.</p>,
+                                            onConfirm: onShutdown,
+                                            confirmText: 'SHUTDOWN',
+                                            confirmClass: 'matrix-button-danger'
+                                        })}
+                                        className="w-full matrix-button matrix-button-danger"
+                                    >
+                                        SHUTDOWN ROOM
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col h-full">
+                            <div className="p-3 border-b border-white/10">
+                                <h3 className="matrix-text text-2xl">USERS ({room.users.length})</h3>
+                            </div>
+                            <div className="flex-grow p-2 overflow-y-auto">
+                                <ul className="space-y-1">
+                                    {room.users.map(user => (
+                                        <li key={user.id} className="flex flex-col items-start p-2 rounded-md hover:bg-white/5">
+                                            <div className="flex items-center gap-2 w-full">
+                                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: user.color }}></span>
+                                                <button onClick={() => onViewProfile(user.id)} className="font-bold truncate hover:underline text-lg">{user.name}</button>
+                                                <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+                                                    {room.creatorId === user.id && <span title="Room Creator"><CrownIcon /></span>}
+                                                    {room.adminIds.includes(user.id) && room.creatorId !== user.id && (
+                                                        <span title="Room Admin"><StarIcon /></span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {user.status && <p className="text-sm text-gray-400 pl-4 italic truncate w-full">"{user.status}"</p>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
-        </>
+        </div>
     );
 };
 

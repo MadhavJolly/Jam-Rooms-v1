@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 interface AuthProps {
@@ -48,27 +49,27 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onSignup }) => {
     }
 
     return (
-        <div className="w-screen h-screen flex items-center justify-center">
-            <div className="w-full max-w-md p-6 matrix-bg matrix-border">
-                <div className="text-center mb-6">
-                    <h1 className="text-5xl matrix-text animate-pulse">JAM ROOMS</h1>
+        <div className="w-screen h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-md p-8 matrix-bg matrix-border">
+                <div className="text-center mb-8">
+                    <h1 className="text-6xl matrix-text">JAM ROOMS</h1>
                 </div>
-                <div className="flex mb-4 border-b-2 border-[#00FF41]">
+                <div className="flex mb-6">
                     <button 
                         onClick={() => handleModeChange('login')}
-                        className={`flex-1 p-3 text-2xl transition-colors duration-200 ${mode === 'login' ? 'matrix-text bg-[#002200]' : 'text-gray-500 hover:bg-[#001100]'}`}
+                        className={`flex-1 p-3 text-2xl uppercase tracking-wider transition-all duration-200 border-b-2 ${mode === 'login' ? 'matrix-text border-[var(--color-accent)]' : 'text-gray-500 border-transparent hover:text-white'}`}
                     >
-                        LOGIN
+                        Login
                     </button>
                     <button 
                         onClick={() => handleModeChange('signup')}
-                        className={`flex-1 p-3 text-2xl transition-colors duration-200 ${mode === 'signup' ? 'matrix-text bg-[#002200]' : 'text-gray-500 hover:bg-[#001100]'}`}
+                         className={`flex-1 p-3 text-2xl uppercase tracking-wider transition-all duration-200 border-b-2 ${mode === 'signup' ? 'matrix-text border-[var(--color-accent)]' : 'text-gray-500 border-transparent hover:text-white'}`}
                     >
-                        SIGN UP
+                        Sign Up
                     </button>
                 </div>
                 
-                <h2 className="text-3xl mb-2 matrix-text animate-pulse text-center">{mode === 'login' ? '>> ACCESS SYSTEM <<' : '>> CREATE IDENTITY <<'}</h2>
+                <h2 className="text-3xl mb-2 matrix-text text-center">{mode === 'login' ? '// Access System' : '// Create Identity'}</h2>
                 <p className="text-lg mb-6 text-center text-gray-400">{mode === 'login' ? 'Enter your credentials.' : 'Choose a unique handle and password.'}</p>
                 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -101,9 +102,9 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onSignup }) => {
                             required
                         />
                     )}
-                    {error && <p className="text-red-500 text-center">{error}</p>}
-                    <button type="submit" className="p-3 matrix-button text-xl" disabled={!name.trim() || !password.trim()}>
-                        {mode === 'login' ? '>> JACK IN <<' : '>> REGISTER <<'}
+                    {error && <p className="text-rose-500 text-center text-lg">{error}</p>}
+                    <button type="submit" className="p-3 matrix-button matrix-button-primary mt-4" disabled={!name.trim() || !password.trim()}>
+                        {mode === 'login' ? 'Jack In' : 'Register'}
                     </button>
                 </form>
             </div>
